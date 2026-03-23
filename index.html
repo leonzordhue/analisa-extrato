@@ -3,114 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Analisador de Extratos Bancários - Sistema LAADV</title>
-    <!-- Bibliotecas -->
+    <title>Analisador de Extratos Bancários - LAADV v3 (Corrigido)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    <!-- Estilos -->
     <style>
+        /* (mesmos estilos do original, pode manter) */
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            background: #f0f4f8;
-            color: #1a2a3a;
-            padding: 2rem 1rem;
-        }
+        body { font-family: 'Segoe UI', Roboto, system-ui, sans-serif; background: #f0f4f8; color: #1a2a3a; padding: 2rem 1rem; }
         .container { max-width: 1400px; margin: 0 auto; }
         h1 { font-size: 1.7rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
         .sub { color: #4a627a; margin-bottom: 2rem; border-left: 4px solid #1e6f5c; padding-left: 1rem; }
-        .card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            transition: all 0.2s;
-        }
-        .upload-area {
-            border: 2px dashed #b9cedb;
-            border-radius: 16px;
-            background: #fafcff;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.2s;
-        }
+        .card { background: white; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 2rem; transition: all 0.2s; }
+        .upload-area { border: 2px dashed #b9cedb; border-radius: 16px; background: #fafcff; padding: 2rem; text-align: center; cursor: pointer; transition: 0.2s; }
         .upload-area:hover { background: #eef2fa; border-color: #1e6f5c; }
         .file-list { margin-top: 1rem; font-size: 0.85rem; color: #2c3e50; }
-        button {
-            background: #1e6f5c;
-            color: white;
-            border: none;
-            border-radius: 40px;
-            padding: 0.6rem 1.4rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.9rem;
-            margin-right: 0.6rem;
-            margin-bottom: 0.5rem;
-        }
+        button { background: #1e6f5c; color: white; border: none; border-radius: 40px; padding: 0.6rem 1.4rem; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; margin-right: 0.6rem; margin-bottom: 0.5rem; }
         button:hover { background: #0e4f42; transform: translateY(-1px); }
         button.secondary { background: #4a627a; }
         button.secondary:hover { background: #2c4058; }
         button.outline { background: transparent; border: 1px solid #1e6f5c; color: #1e6f5c; }
         button.outline:hover { background: #e0f0ec; }
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #e0e7ed;
-            border-radius: 10px;
-            margin: 1rem 0;
-            overflow: hidden;
-        }
+        .progress-bar { width: 100%; height: 6px; background: #e0e7ed; border-radius: 10px; margin: 1rem 0; overflow: hidden; }
         .progress-fill { width: 0%; height: 100%; background: #1e6f5c; transition: width 0.3s; }
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .filter-group {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 1rem; }
+        .filter-group { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         .filter-group label { font-size: 0.8rem; font-weight: 500; background: #eef2fa; padding: 0.2rem 0.6rem; border-radius: 30px; cursor: pointer; }
         .filter-group input { margin-right: 0.2rem; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-            overflow-x: auto;
-            display: block;
-        }
-        th, td {
-            padding: 0.7rem 0.5rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; overflow-x: auto; display: block; }
+        th, td { padding: 0.7rem 0.5rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background: #eef2fa; position: sticky; top: 0; }
-        .totals {
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin: 1rem 0;
-            background: #eef2fa;
-            border-radius: 16px;
-            padding: 1rem;
-        }
-        .total-card {
-            background: white;
-            border-radius: 12px;
-            padding: 0.8rem 1.2rem;
-            min-width: 150px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
+        .totals { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; background: #eef2fa; border-radius: 16px; padding: 1rem; }
+        .total-card { background: white; border-radius: 12px; padding: 0.8rem 1.2rem; min-width: 150px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .total-card span { font-size: 0.7rem; color: #5a6e82; }
         .total-card .value { font-size: 1.5rem; font-weight: 700; color: #1e6f5c; }
         .info-text { font-size: 0.75rem; color: #5a6e82; margin-top: 1rem; }
@@ -121,14 +45,13 @@
 </head>
 <body>
 <div class="container">
-    <h1>📊 Analisador de Extratos Bancários <span style="font-size:0.8rem; background:#eef2fa; padding:0.2rem 0.6rem; border-radius:20px;">v2.0 - LAADV</span></h1>
-    <div class="sub">Leitura inteligente de PDFs e imagens • Identifica descontos indevidos • Sem duplicação • Soma por categoria e mês • Exporta planilha</div>
+    <h1>📊 Analisador de Extratos Bancários <span style="font-size:0.8rem; background:#eef2fa; padding:0.2rem 0.6rem; border-radius:20px;">v3.0 - Motor Corrigido</span></h1>
+    <div class="sub">Leitura precisa de extratos • Identifica apenas descontos reais • Sem duplicatas • Filtros inteligentes • Exporta XLSX/CSV</div>
 
-    <!-- UPLOAD -->
     <div class="card">
         <div class="upload-area" id="dropZone">
             📂 Arraste arquivos (PDF, JPG, PNG) ou clique para selecionar<br>
-            <small style="color:#5a6e82;">Suporta múltiplos arquivos | Extratos desde 2016 | Bancos tradicionais e digitais</small>
+            <small>Suporta múltiplos arquivos | Extratos desde 2016 | Bancos tradicionais e digitais</small>
         </div>
         <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.bmp" style="display:none">
         <div id="fileList" class="file-list"></div>
@@ -142,11 +65,10 @@
         </div>
     </div>
 
-    <!-- FILTROS E TABELA -->
     <div class="card">
         <div class="filters" id="filterContainer">
             <div class="filter-group"><span>📅 Agrupar por mês:</span>
-                <label><input type="checkbox" id="groupByMonthCheck"> Agrupar valores mensais (soma por mês)</label>
+                <label><input type="checkbox" id="groupByMonthCheck"> Agrupar valores mensais</label>
             </div>
             <div class="filter-group"><span>🏷️ Categorias:</span>
                 <div id="categoryFilters" style="display:flex; flex-wrap:wrap; gap:0.3rem;"></div>
@@ -159,9 +81,7 @@
         <div id="totalsPanel" class="totals"></div>
         <div style="overflow-x: auto;">
             <table id="resultTable">
-                <thead>
-                    <tr><th>Data</th><th>Descrição</th><th>Valor (R$)</th><th>Categoria</th><th>Arquivo</th></tr>
-                </thead>
+                <thead><tr><th>Data</th><th>Descrição</th><th>Valor (R$)</th><th>Categoria</th><th>Arquivo</th></tr></thead>
                 <tbody id="tableBody"></tbody>
             </table>
         </div>
@@ -170,8 +90,7 @@
 </div>
 
 <script>
-    // ===================== CONFIGURAÇÃO =====================
-    // Dicionário de tarifas e palavras-chave (expansível)
+    // ===================== DICIONÁRIO DE TARIFAS =====================
     const TARIFAS = [
         { keywords: ['cesta', 'pacote de serviços', 'tarifa mensal', 'pacote essencial', 'cesta básica'], categoria: 'Cesta de Serviços' },
         { keywords: ['seguro', 'prêmio seguro', 'seguro prestamista', 'seguro de vida'], categoria: 'Seguro' },
@@ -186,94 +105,100 @@
         { keywords: ['cheque especial', 'juros cheque especial'], categoria: 'Cheque Especial' }
     ];
 
-    // Função para categorizar uma descrição
     function categorizar(descricao) {
         const lower = descricao.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         for (let t of TARIFAS) {
-            for (let kw of t.keywords) {
-                if (lower.includes(kw)) return t.categoria;
-            }
+            if (t.keywords.some(kw => lower.includes(kw))) return t.categoria;
         }
         return "Outros Descontos";
     }
 
-    // Extrair valor (remover sinal negativo, converter)
-    function extrairValor(textoLinha) {
-        // procura padrões: R$ 12,34 | -12,34 | 12,34- | 12.34 (vírgula ou ponto)
-        const regex = /(?:R?\$?\s*)?([-]?\d{1,3}(?:\.\d{3})*,\d{2})(?:-)?/g;
-        let match;
-        let valores = [];
-        while ((match = regex.exec(textoLinha)) !== null) {
-            let raw = match[1].replace(/\./g, '').replace(',', '.');
-            let num = parseFloat(raw);
-            if (!isNaN(num)) valores.push(num);
-        }
-        if (valores.length === 0) return null;
-        // Pega o valor com maior módulo? Melhor: capturar o primeiro que não seja zero, mas usualmente há um valor
-        let valor = valores[0];
-        // Se houver mais de um, escolhe o maior (ignora valores pequenos)
-        for (let v of valores) if (Math.abs(v) > Math.abs(valor)) valor = v;
-        // remove sinal negativo (queremos o valor absoluto do desconto)
-        return Math.abs(valor);
-    }
-
-    // Extrair data (tenta vários formatos)
-    function extrairData(textoLinha) {
-        // padrões dd/mm/aaaa, dd-mm-aaaa, dd.mm.aaaa, dd/mm/aa (converte para 20aa)
-        const regex = /\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/;
-        const match = textoLinha.match(regex);
-        if (match) {
-            let d = parseInt(match[1]), m = parseInt(match[2]), y = parseInt(match[3]);
+    // ===================== EXTRAÇÃO AVANÇADA =====================
+    // Esta função tenta estruturar as linhas do extrato como: [data, descricao, valor_debito, valor_credito]
+    // Para isso, busca padrões comuns em extratos (Bradesco, Itaú, etc.)
+    function parseLinhaEstruturada(linha) {
+        // Padrão: data no início (dd/mm/aaaa ou dd/mm/aa) seguido de descrição e valor no final
+        // Exemplo: "21/03/2023  Bradesco Celular ...   121,89-"
+        let dataMatch = linha.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+        let data = null;
+        if (dataMatch) {
+            let parts = dataMatch[1].split('/');
+            let d = parseInt(parts[0]), m = parseInt(parts[1]), y = parseInt(parts[2]);
             if (y < 100) y += 2000;
-            if (y >= 2010 && y <= 2030 && d >= 1 && d <= 31 && m >= 1 && m <= 12) {
-                return new Date(y, m-1, d);
+            if (y >= 2010 && y <= 2030) data = new Date(y, m-1, d);
+        }
+
+        // Tentar capturar valor no final da linha (pode estar com sinal negativo ou entre espaços)
+        // Padrão: número com vírgula e possivelmente sinal de menos no final
+        let valorMatch = linha.match(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*-?\s*$/);
+        if (!valorMatch) {
+            // Tenta encontrar qualquer número com vírgula e possível sinal de menos antes ou depois
+            valorMatch = linha.match(/(?:-?\s*)(\d{1,3}(?:\.\d{3})*,\d{2})(?:-?)/);
+        }
+        let valor = null;
+        let isDebito = false;
+        if (valorMatch) {
+            let raw = valorMatch[1].replace(/\./g, '').replace(',', '.');
+            let num = parseFloat(raw);
+            if (!isNaN(num)) {
+                // Verifica se há sinal de menos na linha indicando débito
+                isDebito = /-\s*$/.test(linha) || /^-/.test(linha) || linha.includes('débito') || linha.includes('saída') || linha.includes('desconto');
+                if (isDebito) valor = num;
             }
         }
-        return null;
+
+        // Se não encontrou valor, retorna null
+        if (valor === null) return null;
+
+        // A descrição é o que sobra entre data e valor
+        let descricao = linha;
+        if (dataMatch) descricao = descricao.replace(dataMatch[1], '').trim();
+        if (valorMatch) descricao = descricao.replace(valorMatch[0], '').trim();
+        descricao = descricao.replace(/\s+/g, ' ').trim();
+
+        return { data, descricao, valor, isDebito };
     }
 
-    // Evitar duplicação: conjunto de chaves únicas baseadas em arquivo, data, descrição e valor aproximado
-    let itemsProcessados = new Set(); // armazena chaves únicas
-
-    function gerarChaveUnica(arquivo, data, descricao, valor) {
-        const dataStr = data ? data.toISOString().slice(0,10) : 'semdata';
-        const descNorm = descricao.trim().toLowerCase().replace(/\s+/g,' ').substring(0,100);
-        return `${arquivo}|${dataStr}|${descNorm}|${valor.toFixed(2)}`;
-    }
-
-    // Processar texto extraído de um arquivo (nome, texto bruto)
+    // Processa todo o texto extraído, separando em linhas e aplicando parse estruturado
     async function processarTexto(arquivoNome, texto) {
         const linhas = texto.split(/\r?\n/);
         const resultados = [];
+        const chavesUnicas = new Set();
+
         for (let linha of linhas) {
             if (!linha.trim()) continue;
-            const valor = extrairValor(linha);
-            if (valor === null) continue; // sem valor numérico
-            // Ignorar valores positivos (créditos) – queremos apenas descontos
-            // Se o valor original tiver sinal negativo, é desconto. Como extrairValor retorna absoluto, precisamos saber se era negativo.
-            // Re-checamos sinal na linha: se há '-' ou a palavra 'débito' ou 'saída' indicam desconto
-            const isDebito = /[-–—]|débito|saída|desconto|tarifa|cesta|seguro|mora|juros/i.test(linha);
-            if (!isDebito) continue; // ignora créditos (depósitos, saldo, etc)
 
-            const data = extrairData(linha);
-            const categoria = categorizar(linha);
-            const chave = gerarChaveUnica(arquivoNome, data, linha, valor);
-            if (itemsProcessados.has(chave)) continue; // evita duplicação exata
-            itemsProcessados.add(chave);
+            const parsed = parseLinhaEstruturada(linha);
+            if (!parsed) continue;
+            if (!parsed.isDebito) continue; // Só aceita débitos
+
+            // Aplica o dicionário de tarifas para ver se a descrição contém palavra-chave
+            const categoria = categorizar(parsed.descricao);
+            if (categoria === "Outros Descontos") {
+                // Opcional: podemos descartar se não for uma tarifa conhecida (para reduzir falsos positivos)
+                // Vamos manter, mas você pode ajustar.
+                // Para evitar capturar números aleatórios, exigimos que a descrição tenha pelo menos uma palavra-chave
+                const temKeyword = TARIFAS.some(t => t.keywords.some(kw => parsed.descricao.toLowerCase().includes(kw)));
+                if (!temKeyword) continue; // descarta linhas que não se parecem com despesas bancárias
+            }
+
+            const chave = `${arquivoNome}|${parsed.data?.toISOString() || 'nodata'}|${parsed.descricao.substring(0,100)}|${parsed.valor.toFixed(2)}`;
+            if (chavesUnicas.has(chave)) continue;
+            chavesUnicas.add(chave);
 
             resultados.push({
                 arquivo: arquivoNome,
-                data: data,
-                dataStr: data ? data.toLocaleDateString('pt-BR') : 'Data não identificada',
-                descricao: linha.trim().substring(0, 200),
-                valor: valor,
+                data: parsed.data,
+                dataStr: parsed.data ? parsed.data.toLocaleDateString('pt-BR') : 'Data não identificada',
+                descricao: parsed.descricao.substring(0, 200),
+                valor: parsed.valor,
                 categoria: categoria
             });
         }
         return resultados;
     }
 
-    // Leitura de PDF (textual)
+    // ===================== EXTRAÇÃO DE TEXTO (PDF e IMAGEM) =====================
     async function extrairTextoPDF(arquivo) {
         const arrayBuffer = await arquivo.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -287,7 +212,6 @@
         return textoCompleto;
     }
 
-    // Leitura de imagem via Tesseract (OCR)
     async function extrairTextoImagem(arquivo) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -301,7 +225,6 @@
         });
     }
 
-    // Extração genérica
     async function extrairArquivo(arquivo) {
         const nome = arquivo.name;
         const tipo = arquivo.type;
@@ -316,11 +239,23 @@
         return { nome, texto };
     }
 
-    // Estado global
-    let dadosExtraidos = []; // array de objetos { arquivo, data, descricao, valor, categoria, dataObj }
+    // ===================== CONTROLE GLOBAL =====================
+    let dadosExtraidos = [];
     let resultadosFiltrados = [];
 
-    // Atualizar tabela e totais com base nos filtros
+    function atualizarFiltrosCategoria() {
+        const cats = new Set();
+        for (let item of dadosExtraidos) cats.add(item.categoria);
+        const container = document.getElementById('categoryFilters');
+        container.innerHTML = '';
+        for (let cat of Array.from(cats).sort()) {
+            const label = document.createElement('label');
+            label.innerHTML = `<input type="checkbox" class="cat-filter" value="${escapeAttr(cat)}" checked> ${cat}`;
+            container.appendChild(label);
+        }
+        document.querySelectorAll('.cat-filter').forEach(cb => cb.addEventListener('change', () => atualizarVisualizacao()));
+    }
+
     function atualizarVisualizacao() {
         const groupByMonth = document.getElementById('groupByMonthCheck').checked;
         let filtrados = [...dadosExtraidos];
@@ -337,26 +272,25 @@
         if (startMonth) {
             const [y,m] = startMonth.split('-');
             const startDate = new Date(parseInt(y), parseInt(m)-1, 1);
-            filtrados = filtrados.filter(item => item.dataObj && item.dataObj >= startDate);
+            filtrados = filtrados.filter(item => item.data && item.data >= startDate);
         }
         if (endMonth) {
             const [y,m] = endMonth.split('-');
             const endDate = new Date(parseInt(y), parseInt(m)-1, 1);
-            endDate.setMonth(endDate.getMonth()+1); // até final do mês
-            filtrados = filtrados.filter(item => item.dataObj && item.dataObj < endDate);
+            endDate.setMonth(endDate.getMonth()+1);
+            filtrados = filtrados.filter(item => item.data && item.data < endDate);
         }
 
-        // Agrupamento por mês se selecionado
         let exibir = [];
         let totaisCategoria = {};
 
         if (groupByMonth) {
-            const mapa = new Map(); // chave: ano-mês
+            const mapa = new Map();
             for (let item of filtrados) {
-                if (!item.dataObj) continue;
-                const chave = `${item.dataObj.getFullYear()}-${item.dataObj.getMonth()+1}`;
+                if (!item.data) continue;
+                const chave = `${item.data.getFullYear()}-${item.data.getMonth()+1}`;
                 if (!mapa.has(chave)) {
-                    mapa.set(chave, { mes: chave, valor: 0, categorias: {}, desc: `Resumo do mês ${item.dataObj.toLocaleDateString('pt-BR', {month:'long', year:'numeric'})}` });
+                    mapa.set(chave, { mes: chave, valor: 0, categorias: {}, desc: `Resumo do mês ${item.data.toLocaleDateString('pt-BR', {month:'long', year:'numeric'})}` });
                 }
                 const grupo = mapa.get(chave);
                 grupo.valor += item.valor;
@@ -368,9 +302,8 @@
                 descricao: g.desc,
                 valor: g.valor,
                 categoria: Object.entries(g.categorias).map(([c, v]) => `${c}: R$ ${v.toFixed(2)}`).join(' | ') || 'Vários',
-                dataObj: null
+                data: null
             }));
-            // Totais por categoria no agrupamento mensal
             for (let g of mapa.values()) {
                 for (let [cat, val] of Object.entries(g.categorias)) {
                     totaisCategoria[cat] = (totaisCategoria[cat] || 0) + val;
@@ -378,21 +311,18 @@
             }
         } else {
             exibir = filtrados;
-            // Totais normais
             for (let item of filtrados) {
                 totaisCategoria[item.categoria] = (totaisCategoria[item.categoria] || 0) + item.valor;
             }
         }
 
         resultadosFiltrados = exibir;
-
-        // Montar tabela
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         for (let row of exibir) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${row.dataStr || '—'}</td>
+                <td>${escapeHtml(row.dataStr || '—')}</td>
                 <td>${escapeHtml(row.descricao)}</td>
                 <td style="text-align:right; font-weight:500;">R$ ${row.valor.toFixed(2)}</td>
                 <td>${escapeHtml(row.categoria)}</td>
@@ -402,7 +332,6 @@
         }
         document.getElementById('infoCount').innerHTML = `${exibir.length} itens encontrados (${filtrados.length} descontos originais)`;
 
-        // Painel de totais
         const totalsDiv = document.getElementById('totalsPanel');
         let totalGeral = 0;
         let htmlTotais = `<div class="total-card"><span>💰 Total Geral</span><div class="value">R$ 0,00</div></div>`;
@@ -414,24 +343,7 @@
         totalsDiv.innerHTML = htmlTotais;
     }
 
-    // Gerar checkboxes de categorias dinamicamente
-    function atualizarFiltrosCategoria() {
-        const cats = new Set();
-        for (let item of dadosExtraidos) cats.add(item.categoria);
-        const container = document.getElementById('categoryFilters');
-        container.innerHTML = '';
-        for (let cat of Array.from(cats).sort()) {
-            const label = document.createElement('label');
-            label.innerHTML = `<input type="checkbox" class="cat-filter" value="${escapeAttr(cat)}" checked> ${cat}`;
-            container.appendChild(label);
-        }
-        // Adicionar evento aos checkboxes
-        document.querySelectorAll('.cat-filter').forEach(cb => cb.addEventListener('change', () => atualizarVisualizacao()));
-    }
-
-    // Função principal de extração
     async function extrairTodosArquivos(arquivos) {
-        itemsProcessados.clear();
         dadosExtraidos = [];
         atualizarProgresso(0);
         const total = arquivos.length;
@@ -456,15 +368,10 @@
         atualizarVisualizacao();
     }
 
-    // Helper UI
     function atualizarProgresso(percent) {
         document.getElementById('progressFill').style.width = percent + '%';
     }
 
-    function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m; }); }
-    function escapeAttr(str) { return str.replace(/["']/g, ''); }
-
-    // Exportar XLSX
     function exportarXLSX() {
         const dados = resultadosFiltrados.map(r => ({
             Data: r.dataStr || '',
@@ -500,7 +407,7 @@
         URL.revokeObjectURL(url);
     }
 
-    // Upload e interações
+    // ===================== UI E EVENTOS =====================
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     let arquivosSelecionados = [];
@@ -528,11 +435,9 @@
         }
         extrairTodosArquivos(arquivosSelecionados);
     });
-
     document.getElementById('btnLimpar').addEventListener('click', () => {
         dadosExtraidos = [];
         resultadosFiltrados = [];
-        itemsProcessados.clear();
         arquivosSelecionados = [];
         document.getElementById('fileList').innerHTML = '';
         document.getElementById('tableBody').innerHTML = '';
@@ -542,14 +447,15 @@
         atualizarProgresso(0);
         document.getElementById('infoCount').innerHTML = '';
     });
-
     document.getElementById('btnExportarXLSX').addEventListener('click', exportarXLSX);
     document.getElementById('btnExportarCSV').addEventListener('click', exportarCSV);
     document.getElementById('btnFiltrar').addEventListener('click', () => atualizarVisualizacao());
     document.getElementById('groupByMonthCheck').addEventListener('change', () => atualizarVisualizacao());
 
-    // Inicializar pdf.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m; }); }
+    function escapeAttr(str) { return String(str).replace(/["']/g, ''); }
 </script>
 </body>
 </html>
