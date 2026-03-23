@@ -1,28 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<!--
-╔══════════════════════════════════════════════════════════════╗
-║  LAADV — Analisador de Extratos Bancários v4.0              ║
-║  Luís Albert Advocacia | Motor Claude AI                    ║
-╠══════════════════════════════════════════════════════════════╣
-║  [v4.0.0] 2026-03-23                                        ║
-║  + Motor IA (Claude API) — sem regex cego                   ║
-║  + Identifica apenas débitos reais, sem duplicatas          ║
-║  + PDF, imagem, múltiplos arquivos                          ║
-║  + Filtros por categoria, período, agrupamento mensal        ║
-║  + Exportação XLSX e CSV                                    ║
-╚══════════════════════════════════════════════════════════════╝
--->
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta name="theme-color" content="#0B4A44"/>
-<title>LAADV — Analisador de Extratos Bancários</title>
+<title>LAADV — Analisador de Extratos Bancários v4.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{
@@ -43,14 +28,12 @@
 html{scroll-behavior:smooth;}
 body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh;}
 
-/* TOPBAR */
 .topbar{background:var(--teal);padding:.38rem 1.5rem;display:flex;align-items:center;justify-content:space-between;}
 .topbar-l{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);font-weight:500;}
 .topbar-r{font-size:.62rem;font-weight:600;color:var(--gold-light);display:flex;align-items:center;gap:.5rem;letter-spacing:.06em;text-transform:uppercase;}
 .topbar-dot{width:6px;height:6px;border-radius:50%;background:var(--gold-light);animation:pulse 2.2s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* HEADER */
 .site-header{background:var(--teal);border-bottom:3px solid var(--gold);padding:.85rem 1.5rem 1rem;position:sticky;top:0;z-index:200;box-shadow:0 4px 24px rgba(11,74,68,.3);}
 .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
 .brand{display:flex;align-items:center;gap:1rem;}
@@ -64,7 +47,6 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .hdr-dot.ok{background:var(--gold-light);box-shadow:0 0 6px var(--gold-light);}
 .header-badge{font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:rgba(201,169,62,.18);border:1px solid rgba(201,169,62,.4);color:var(--gold-light);padding:.4em 1.1em;border-radius:100px;}
 
-/* HERO */
 .hero{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-mid) 60%,var(--teal-light) 100%);padding:2.2rem 1.5rem 3rem;position:relative;overflow:hidden;}
 .hero::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-52deg,transparent,transparent 54px,rgba(201,169,62,.04) 54px,rgba(201,169,62,.04) 55px);}
 .hero::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(to bottom,var(--gold),rgba(201,169,62,.1));}
@@ -75,10 +57,8 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .hero-wave{overflow:hidden;line-height:0;}
 .hero-wave svg{display:block;width:100%;fill:var(--gray-bg);}
 
-/* MAIN */
 .main-wrap{max-width:1200px;margin:0 auto;padding:0 1.5rem 5rem;}
 
-/* CARD */
 .card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:1.5rem;overflow:hidden;}
 .card-head{background:linear-gradient(to right,var(--teal),var(--teal-mid));padding:.9rem 1.4rem;display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-size:.82rem;font-weight:700;letter-spacing:.04em;color:#fff;}
@@ -86,18 +66,20 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .card-badge{font-size:.6rem;font-weight:700;background:rgba(201,169,62,.25);border:1px solid rgba(201,169,62,.45);color:var(--gold-light);padding:.25em .8em;border-radius:100px;letter-spacing:.06em;text-transform:uppercase;}
 .card-body{padding:1.4rem;}
 
-/* UPLOAD AREA */
 .drop-zone{border:2px dashed var(--teal-brd);border-radius:10px;background:var(--teal-bg);padding:2rem;text-align:center;cursor:pointer;transition:.2s;}
 .drop-zone:hover,.drop-zone.over{border-color:var(--teal);background:#d5ecea;}
 .drop-zone-icon{font-size:2rem;margin-bottom:.5rem;line-height:1;}
 .drop-zone-title{font-size:.9rem;font-weight:700;color:var(--teal);}
 .drop-zone-sub{font-size:.72rem;color:var(--gray-mid);margin-top:.3rem;line-height:1.5;}
+
 .file-list{margin-top:.9rem;}
 .file-item{display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem;border-radius:8px;background:var(--gray-light);border:1px solid var(--gray-brd);margin-bottom:.4rem;font-size:.78rem;}
 .file-item-name{flex:1;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .file-item-size{color:var(--gray-mid);font-size:.7rem;}
+.file-item-tipo{font-size:.65rem;font-weight:700;padding:.15em .6em;border-radius:100px;}
+.tipo-pdf{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-brd);}
+.tipo-img{background:var(--gold-bg);color:var(--gold-dark);border:1px solid var(--gold-brd);}
 
-/* PROGRESS */
 .progress-wrap{margin:.9rem 0 .5rem;}
 .progress-bar{height:4px;background:var(--gray-brd);border-radius:10px;overflow:hidden;}
 .progress-fill{height:100%;background:linear-gradient(to right,var(--teal),var(--gold));width:0%;transition:width .3s;}
@@ -106,12 +88,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .status-msg.err{color:var(--error);}
 .status-msg.warn{color:var(--orange);}
 
-/* BUTTONS */
 .btn{font-family:var(--font);font-size:.82rem;font-weight:700;border:none;border-radius:9px;padding:.7em 1.4em;cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;transition:all .16s;white-space:nowrap;}
 .btn-primary{background:var(--teal);color:#fff;}
 .btn-primary:hover{background:var(--teal-hover);transform:translateY(-1px);box-shadow:0 4px 18px rgba(11,74,68,.3);}
-.btn-gold{background:var(--gold);color:var(--teal);}
-.btn-gold:hover{background:var(--gold-light);transform:translateY(-1px);}
 .btn-outline{background:transparent;color:var(--teal);border:1.5px solid var(--teal-brd);}
 .btn-outline:hover{background:var(--teal-bg);}
 .btn-ghost{background:transparent;color:var(--gray-mid);border:1.5px solid var(--gray-brd);}
@@ -119,35 +98,23 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .btn:disabled{opacity:.45;pointer-events:none;}
 .btn-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
 
-/* LOG */
-.log-box{background:#0a1a18;border-radius:8px;padding:.8rem 1rem;font-size:.7rem;font-family:monospace;color:#7ecdc6;max-height:130px;overflow-y:auto;margin-top:.9rem;line-height:1.7;display:none;}
+.log-box{background:#0a1a18;border-radius:8px;padding:.8rem 1rem;font-size:.7rem;font-family:monospace;color:#7ecdc6;max-height:150px;overflow-y:auto;margin-top:.9rem;line-height:1.7;display:none;}
 .log-box .l-ok{color:#6ee7b7;}
 .log-box .l-err{color:#fca5a5;}
 .log-box .l-warn{color:#fcd34d;}
 
-/* SECTION TITLE */
-.sec-title{font-family:var(--font-serif);font-size:1.1rem;font-weight:700;color:var(--teal);margin-bottom:.2rem;}
-.sec-sub{font-size:.75rem;color:var(--gray-mid);margin-bottom:1.1rem;}
-
-/* KPI GRID */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.9rem;margin-bottom:1.25rem;}
 .kpi-card{background:var(--white);border:1.5px solid var(--gray-brd);border-radius:10px;padding:.9rem 1.1rem;position:relative;overflow:hidden;}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--teal-brd);}
 .kpi-card.hl{background:var(--teal);border-color:var(--teal);}
 .kpi-card.hl::before{background:var(--gold);}
-.kpi-card.gd{background:linear-gradient(135deg,var(--gold),var(--gold-dark));border-color:var(--gold-dark);}
-.kpi-card.gd::before{background:var(--teal);}
 .kpi-label{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-mid);margin-bottom:.25rem;}
 .kpi-card.hl .kpi-label{color:rgba(255,255,255,.55);}
-.kpi-card.gd .kpi-label{color:rgba(11,74,68,.6);}
 .kpi-val{font-family:var(--font-serif);font-size:1.7rem;font-weight:700;color:var(--text);line-height:1.1;}
 .kpi-card.hl .kpi-val{color:#fff;}
-.kpi-card.gd .kpi-val{color:var(--teal);}
 .kpi-sub{font-size:.65rem;color:var(--gray-mid);margin-top:.2rem;}
 .kpi-card.hl .kpi-sub{color:rgba(255,255,255,.45);}
-.kpi-card.gd .kpi-sub{color:rgba(11,74,68,.5);}
 
-/* FILTERS */
 .filters-row{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;padding:1rem 1.4rem;border-bottom:1px solid var(--gray-brd);}
 .filter-group{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--text-mid);}
 .filter-group label{display:flex;align-items:center;gap:.3rem;cursor:pointer;}
@@ -155,44 +122,31 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .filter-group input[type=month]{font-family:var(--font);font-size:.75rem;color:var(--text);background:var(--white);border:1.5px solid var(--gray-brd);border-radius:7px;padding:.35rem .6rem;outline:none;}
 .filter-group input[type=month]:focus{border-color:var(--teal);}
 .sep{color:var(--gray-brd);font-size:.8rem;}
-
-/* CATEGORY PILLS */
 .cat-pills{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;}
-.cat-pill{font-size:.68rem;font-weight:700;padding:.2em .75em;border-radius:100px;border:1.5px solid var(--gray-brd);background:var(--white);color:var(--gray-mid);cursor:pointer;transition:all .15s;letter-spacing:.02em;}
+.cat-pill{font-size:.68rem;font-weight:700;padding:.2em .75em;border-radius:100px;border:1.5px solid var(--gray-brd);background:var(--white);color:var(--gray-mid);cursor:pointer;transition:all .15s;}
 .cat-pill:hover{border-color:var(--teal-brd);color:var(--teal);}
 .cat-pill.active{background:var(--teal-bg);border-color:var(--teal);color:var(--teal);}
 
-/* TABLE */
 .tbl-wrap{overflow-x:auto;max-height:540px;overflow-y:auto;}
 .result-table{width:100%;border-collapse:collapse;font-size:.78rem;}
 .result-table thead tr{background:var(--teal);}
-.result-table thead th{padding:.75rem 1rem;font-size:.63rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.9);text-align:left;white-space:nowrap;border-right:1px solid rgba(255,255,255,.1);}
-.result-table thead th:last-child{border-right:none;}
+.result-table thead th{padding:.75rem 1rem;font-size:.63rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.9);text-align:left;white-space:nowrap;}
 .result-table thead th.r{text-align:right;}
 .result-table tbody tr{border-bottom:1px solid var(--gray-brd);transition:background .12s;}
-.result-table tbody tr:last-child{border-bottom:none;}
 .result-table tbody tr:hover{background:var(--teal-bg);}
-.result-table tbody td{padding:.65rem 1rem;color:var(--text-mid);border-right:1px solid var(--gray-brd);vertical-align:top;}
+.result-table tbody td{padding:.65rem 1rem;color:var(--text-mid);border-right:1px solid var(--gray-brd);}
 .result-table tbody td:last-child{border-right:none;}
 .td-val{font-weight:700;color:var(--teal);text-align:right;white-space:nowrap;font-family:var(--font-serif);font-size:.88rem;}
 .td-date{white-space:nowrap;font-size:.72rem;color:var(--gray-mid);}
 .td-desc{max-width:340px;line-height:1.4;color:var(--text);}
 .td-arq{color:var(--gray-mid);font-size:.68rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .table-foot{padding:.5rem 1rem;font-size:.65rem;color:var(--gray-mid);border-top:1px solid var(--gray-brd);display:flex;justify-content:space-between;align-items:center;}
-
-/* TAGS */
 .tag{display:inline-flex;align-items:center;font-size:.63rem;font-weight:700;padding:.2em .7em;border-radius:100px;letter-spacing:.04em;white-space:nowrap;}
 .tag-teal{background:var(--teal-bg);border:1px solid var(--teal-brd);color:var(--teal);}
-.tag-gold{background:var(--gold-bg);border:1px solid var(--gold-brd);color:var(--gold-dark);}
-.tag-green{background:var(--success-bg);border:1px solid var(--success-brd);color:var(--success);}
-.tag-orange{background:var(--orange-bg);border:1px solid var(--orange-brd);color:var(--orange);}
-
-/* EMPTY */
 .empty-state{padding:3rem 2rem;text-align:center;}
 .empty-state-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4;}
 .empty-state-text{font-size:.85rem;color:var(--gray-mid);}
 
-/* FOOTER */
 .site-footer{background:var(--teal);border-top:3px solid var(--gold);padding:1.2rem 1.5rem;margin-top:2rem;}
 .footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;}
 .footer-brand{display:flex;align-items:center;gap:.75rem;}
@@ -201,7 +155,6 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .footer-copy{font-size:.62rem;color:rgba(255,255,255,.4);line-height:1.6;text-align:right;}
 
 @media(max-width:640px){
-  .kpi-val{font-size:1.3rem;}
   .main-wrap{padding:0 .75rem 4rem;}
   .card-body{padding:1rem;}
   .filters-row{padding:.75rem 1rem;}
@@ -210,16 +163,11 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 </head>
 <body>
 
-<!-- TOPBAR -->
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r">
-    <span class="topbar-dot"></span>
-    Analisador de Extratos v4.0
-  </span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador de Extratos v4.1</span>
 </div>
 
-<!-- HEADER -->
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
@@ -228,7 +176,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       </div>
       <div>
         <div class="brand-name">Luís Albert Advocacia</div>
-        <div class="brand-sub">Analisador de Extratos · Motor IA</div>
+        <div class="brand-sub">Analisador de Extratos · Motor Gemini AI</div>
       </div>
     </div>
     <div class="hdr-right">
@@ -236,30 +184,27 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
         <div class="hdr-dot ok" id="dotStatus"></div>
         <span id="hdrStatusTxt">Pronto</span>
       </div>
-      <div class="header-badge">LAADV v4.0</div>
+      <div class="header-badge">LAADV v4.1</div>
     </div>
   </div>
 </header>
 
-<!-- HERO -->
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-eye">// Análise Bancária · Motor Claude AI · Repetição de Indébito</div>
+    <div class="hero-eye">// Análise Bancária · Motor Gemini AI · PDF + Imagens · Repetição de Indébito</div>
     <div class="hero-title">Analisador de Extratos<br>Bancários Inteligente</div>
     <div class="hero-sub">Leitura de PDF e imagens com IA — identifica apenas descontos reais, sem duplicatas, sem falsos positivos. Bradesco, Itaú, CEF, Santander, BB e bancos digitais. Exporta planilha pronta para petição.</div>
   </div>
   <div class="hero-wave"><svg viewBox="0 0 1440 40" preserveAspectRatio="none"><path d="M0,30 C360,0 1080,40 1440,20 L1440,40 L0,40 Z"/></svg></div>
 </div>
 
-<!-- MAIN -->
 <div class="main-wrap" style="padding-top:1.75rem;">
 
-  <!-- UPLOAD CARD -->
   <div class="card">
     <div class="card-head">
       <div>
         <div class="card-title">Carregamento de Extratos</div>
-        <div class="card-sub">PDF, JPG, PNG · múltiplos arquivos · todos os bancos · a partir de 2010</div>
+        <div class="card-sub">PDF nativo · PDF escaneado · JPG · PNG · múltiplos arquivos · todos os bancos</div>
       </div>
       <div class="card-badge">Passo 1</div>
     </div>
@@ -267,31 +212,28 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       <div class="drop-zone" id="dropZone">
         <div class="drop-zone-icon">📄</div>
         <div class="drop-zone-title">Arraste os extratos aqui ou clique para selecionar</div>
-        <div class="drop-zone-sub">PDF nativo ou escaneado · Imagens JPG / PNG · Múltiplos arquivos simultâneos<br>Bradesco · Itaú · Caixa Econômica · Santander · Banco do Brasil · Bancos Digitais</div>
+        <div class="drop-zone-sub">
+          PDF com texto ou escaneado · Imagens JPG / PNG / BMP · Múltiplos arquivos simultâneos<br>
+          Bradesco · Itaú · Caixa Econômica · Santander · Banco do Brasil · Bancos Digitais · Extratos desde 2010
+        </div>
       </div>
       <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp" style="display:none">
       <div class="file-list" id="fileList"></div>
-
       <div class="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
         <div class="status-msg" id="statusMsg"></div>
       </div>
-
       <div class="btn-row">
         <button class="btn btn-primary" id="btnAnalisar">🔍 Analisar com IA</button>
         <button class="btn btn-ghost" id="btnLimpar">🗑 Limpar</button>
         <button class="btn btn-outline" id="btnXLSX" disabled>📎 Exportar XLSX</button>
         <button class="btn btn-outline" id="btnCSV" disabled>📄 Exportar CSV</button>
       </div>
-
       <div class="log-box" id="logBox"></div>
     </div>
   </div>
 
-  <!-- RESULTADOS (oculto até análise) -->
   <div id="resultCard" style="display:none;">
-
-    <!-- KPIs -->
     <div class="card">
       <div class="card-head">
         <div>
@@ -305,7 +247,6 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       </div>
     </div>
 
-    <!-- TABELA -->
     <div class="card">
       <div class="card-head">
         <div>
@@ -314,28 +255,23 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
         </div>
         <div class="card-badge">Passo 3</div>
       </div>
-
-      <!-- FILTROS -->
       <div class="filters-row">
         <div class="filter-group">
           <label><input type="checkbox" id="chkMes"> Agrupar por mês</label>
         </div>
         <span class="sep">|</span>
         <div class="filter-group">
-          🏷️
-          <div class="cat-pills" id="catPills"></div>
+          🏷️ <div class="cat-pills" id="catPills"></div>
         </div>
         <span class="sep">|</span>
         <div class="filter-group">
           📆
-          <input type="month" id="dtStart" title="De">
+          <input type="month" id="dtStart">
           <span style="color:var(--gray-mid)">até</span>
-          <input type="month" id="dtEnd" title="Até">
+          <input type="month" id="dtEnd">
           <button class="btn btn-outline" style="padding:.3rem .9rem;font-size:.72rem;" id="btnFiltrar">Filtrar</button>
         </div>
       </div>
-
-      <!-- TABELA -->
       <div class="tbl-wrap">
         <table class="result-table">
           <thead>
@@ -351,16 +287,14 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
         </table>
       </div>
       <div class="table-foot">
-        <span id="infoCount" style="color:var(--gray-mid);font-size:.65rem;"></span>
+        <span id="infoCount"></span>
         <span class="tag tag-teal" id="tagTotal"></span>
       </div>
     </div>
+  </div>
 
-  </div><!-- /resultCard -->
+</div>
 
-</div><!-- /main-wrap -->
-
-<!-- FOOTER -->
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
@@ -369,14 +303,16 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       </div>
       <div class="footer-nome">Luís Albert Advocacia</div>
     </div>
-    <div class="footer-copy">LAADV — Analisador de Extratos v4.0 · Motor Claude AI<br>Manaus – AM</div>
+    <div class="footer-copy">LAADV — Analisador de Extratos v4.1 · Motor Gemini AI · PDF + Imagens<br>Manaus – AM</div>
   </div>
 </footer>
 
 <script>
+// ── CONFIGURAÇÃO ──────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRkHW2YxbfggswbELyR3Mk2oqddLfahjlXinP8qSAES21kI-1bzMnr9VaIKUzsf_gy/exec';
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// ── ESTADO ────────────────────────────────────────────────────────────────────
 let allItems = [], filtered = [], arquivos = [], activeCats = new Set(), logLines = [];
 
 // ── LOG ───────────────────────────────────────────────────────────────────────
@@ -385,7 +321,7 @@ function log(msg, tipo='') {
   logLines.push({ts, msg, tipo});
   const box = document.getElementById('logBox');
   box.style.display = 'block';
-  box.innerHTML = logLines.slice(-40).map(l => {
+  box.innerHTML = logLines.slice(-50).map(l => {
     const cls = l.tipo==='ok'?'l-ok':l.tipo==='err'?'l-err':l.tipo==='warn'?'l-warn':'';
     return `<span class="${cls}">[${l.ts}] ${esc(l.msg)}</span>`;
   }).join('\n');
@@ -397,14 +333,19 @@ function log(msg, tipo='') {
 }
 function prog(p) { document.getElementById('pFill').style.width = p+'%'; }
 
-// ── EXTRAÇÃO PDF ──────────────────────────────────────────────────────────────
-async function extrairPDF(file) {
+// ── EXTRAÇÃO PDF (texto nativo) ───────────────────────────────────────────────
+async function extrairTextoPDF(file) {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: ab}).promise;
   const paginas = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
+    if (!content.items.length) {
+      // Página sem texto = escaneada, precisará de análise visual
+      paginas.push(`=== Página ${i}/${pdf.numPages} [SEM TEXTO - ESCANEADA] ===`);
+      continue;
+    }
     const byY = {};
     for (const item of content.items) {
       const y = Math.round(item.transform[5]);
@@ -413,91 +354,185 @@ async function extrairPDF(file) {
     }
     const ys = Object.keys(byY).map(Number).sort((a,b) => b-a);
     const linhas = ys.map(y => byY[y].sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ').trim()).filter(l=>l);
-    paginas.push({pagina: i, total: pdf.numPages, linhas});
+    paginas.push(`=== Página ${i}/${pdf.numPages} ===\n${linhas.join('\n')}`);
   }
-  return paginas;
+  return paginas.join('\n\n');
 }
 
-async function extrairImagem(file) {
-  const url = URL.createObjectURL(file);
-  const result = await Tesseract.recognize(url, 'por', {logger:()=>{}});
-  URL.revokeObjectURL(url);
-  const linhas = result.data.text.split('\n').map(l=>l.trim()).filter(l=>l);
-  return [{pagina:1, total:1, linhas}];
+// ── CONVERTER ARQUIVO PARA BASE64 ─────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // Remove o prefixo "data:image/xxx;base64,"
+      const base64 = e.target.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
-// ── CLAUDE API ────────────────────────────────────────────────────────────────
-async function parsearComIA(nomeArquivo, paginas) {
-  const texto = paginas.map(p => `=== Página ${p.pagina}/${p.total} ===\n${p.linhas.join('\n')}`).join('\n\n');
-  const CHUNK = 3500;
+// ── DETECTAR MIME TYPE ────────────────────────────────────────────────────────
+function getMimeType(file) {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const map = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', bmp:'image/bmp', webp:'image/webp', gif:'image/gif' };
+  return map[ext] || 'image/jpeg';
+}
+
+// ── CHAMADA AO APPS SCRIPT ────────────────────────────────────────────────────
+async function chamarIA(payload) {
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) throw new Error(`Servidor retornou status ${res.status}`);
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  return data.result || '[]';
+}
+
+// ── PARSE RESULTADO DA IA ─────────────────────────────────────────────────────
+function parseItens(raw, nomeArquivo, seen) {
+  const clean = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+  let itens = [];
+  try {
+    itens = JSON.parse(clean);
+    if (!Array.isArray(itens)) itens = [];
+  } catch {
+    const m = clean.match(/\[[\s\S]*\]/);
+    if (m) try { itens = JSON.parse(m[0]); } catch {}
+  }
+
+  const resultado = [];
+  for (const it of itens) {
+    const valor = Math.abs(Number(it.valor) || 0);
+    if (!valor) continue;
+
+    let dataObj = null, dataStr = 'Data não identificada';
+    if (it.data && it.data !== 'null' && it.data !== '') {
+      const p = String(it.data).split('/');
+      if (p.length === 3) {
+        let d = +p[0], m = +p[1], y = +p[2];
+        if (y < 100) y += 2000;
+        if (y >= 2000 && y <= 2035 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+          dataObj = new Date(y, m-1, d);
+          dataStr = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+        }
+      }
+    }
+
+    const chave = `${nomeArquivo}|${dataStr}|${valor.toFixed(2)}|${(it.descricao||'').trim().slice(0,40)}`;
+    if (seen.has(chave)) continue;
+    seen.add(chave);
+
+    resultado.push({
+      arquivo: nomeArquivo,
+      data: dataObj,
+      dataStr,
+      descricao: (it.descricao || '').trim().slice(0, 250),
+      valor,
+      categoria: it.categoria || 'Outros Descontos'
+    });
+  }
+  return resultado;
+}
+
+// ── PROCESSAR PDF ─────────────────────────────────────────────────────────────
+async function processarPDF(file) {
+  log(`📄 Extraindo texto de ${file.name}…`);
+  const texto = await extrairTextoPDF(file);
+  const temTexto = texto.replace(/=== Página.*===/g,'').trim().length > 50;
+
+  if (!temTexto) {
+    // PDF escaneado — converter cada página em imagem via canvas
+    log(`🖼️ ${file.name}: PDF escaneado detectado — análise visual página a página…`, 'warn');
+    return await processarPDFEscaneado(file);
+  }
+
+  // PDF com texto — enviar em chunks
+  const CHUNK = 4000;
   const chunks = [];
   for (let i = 0; i < texto.length; i += CHUNK) chunks.push(texto.slice(i, i+CHUNK));
 
   const todos = [];
-  for (let ci = 0; ci < chunks.length; ci++) {
-    log(`🤖 IA — ${nomeArquivo}: bloco ${ci+1}/${chunks.length}…`);
-    const prompt = `Você é especialista em extratos bancários brasileiros. Analise o texto abaixo e extraia APENAS lançamentos de DÉBITO reais (tarifas, encargos, seguros, juros, parcelas cobradas do cliente).
-
-IGNORAR completamente: cabeçalhos de página, nome do cliente, agência, conta, período, número de folha, saldos, créditos recebidos, depósitos, PIX/TED/DOC recebidos, salários, restituições.
-
-CAPTURAR: tarifas bancárias, cestas, seguros, juros de mora, juros rotativos, cheque especial, IOF, anuidades, parcelas de empréstimo/financiamento debitadas, antecipações.
-
-REGRAS: valores sempre positivos (sem sinal de menos). Data = data real da transação (dd/mm/aaaa), não data de impressão. Retorne APENAS JSON válido, sem texto, sem markdown.
-
-Formato: [{"data":"dd/mm/aaaa","descricao":"descrição limpa","valor":123.45,"categoria":"Cesta de Serviços|Seguro|Juros Mora|Juros Rotativos|Cheque Especial|IOF/Impostos|Anuidade|Taxa Administrativa|Tarifas Bancárias|Antecipação|Parcela Empréstimo|Cartão de Crédito|Outros Descontos"}]
-
-Se não houver débitos neste trecho, retorne: []
-
-TEXTO:
-${chunks[ci]}`;
-
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}]})
-      });
-      if (!res.ok) { log(`❌ API erro ${res.status}`, 'err'); continue; }
-      const data = await res.json();
-      const raw = data.content.map(b=>b.type==='text'?b.text:'').join('').trim();
-      const json = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
-      let itens = [];
-      try { itens = JSON.parse(json); if (!Array.isArray(itens)) itens = []; }
-      catch { const m = json.match(/\[[\s\S]*\]/); if (m) try { itens = JSON.parse(m[0]); } catch{} }
-
-      for (const it of itens) {
-        const valor = Math.abs(Number(it.valor)||0);
-        if (!valor) continue;
-        let dataObj=null, dataStr='Data não identificada';
-        if (it.data && it.data!=='null') {
-          const p = it.data.split('/');
-          if (p.length===3) {
-            let d=+p[0], m=+p[1], y=+p[2];
-            if (y<100) y+=2000;
-            if (y>=2000&&y<=2030&&m>=1&&m<=12&&d>=1&&d<=31) {
-              dataObj = new Date(y,m-1,d);
-              dataStr = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
-            }
-          }
-        }
-        todos.push({arquivo:nomeArquivo, data:dataObj, dataStr, descricao:(it.descricao||'').trim().slice(0,250), valor, categoria:it.categoria||'Outros Descontos'});
-      }
-      log(`✅ Bloco ${ci+1}/${chunks.length}: ${itens.length} lançamento(s)`, 'ok');
-    } catch(e) { log(`❌ Bloco ${ci+1}: ${e.message}`, 'err'); }
-  }
-
-  // Deduplicação
   const seen = new Set();
-  return todos.filter(it => {
-    const k = `${it.arquivo}|${it.dataStr}|${it.valor.toFixed(2)}|${it.descricao.slice(0,50)}`;
-    if (seen.has(k)) return false;
-    seen.add(k); return true;
-  });
+
+  for (let ci = 0; ci < chunks.length; ci++) {
+    log(`🤖 IA texto — ${file.name}: bloco ${ci+1}/${chunks.length}…`);
+    try {
+      const raw = await chamarIA({ tipo: 'texto', texto: chunks[ci] });
+      const itens = parseItens(raw, file.name, seen);
+      todos.push(...itens);
+      log(`✅ Bloco ${ci+1}/${chunks.length}: ${itens.length} lançamento(s)`, 'ok');
+    } catch(e) {
+      log(`❌ Bloco ${ci+1}: ${e.message}`, 'err');
+    }
+    if (ci < chunks.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  return todos;
+}
+
+// ── PROCESSAR PDF ESCANEADO (página a página como imagem) ─────────────────────
+async function processarPDFEscaneado(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+  const todos = [];
+  const seen = new Set();
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    log(`🖼️ ${file.name}: renderizando página ${i}/${pdf.numPages}…`);
+    try {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale: 2.0});
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
+
+      // Converter canvas para base64
+      const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+      log(`🤖 IA imagem — ${file.name}: página ${i}/${pdf.numPages}…`);
+      const raw = await chamarIA({ tipo: 'imagem', base64, mimeType: 'image/jpeg' });
+      const itens = parseItens(raw, file.name, seen);
+      todos.push(...itens);
+      log(`✅ Página ${i}/${pdf.numPages}: ${itens.length} lançamento(s)`, 'ok');
+
+    } catch(e) {
+      log(`❌ Página ${i}: ${e.message}`, 'err');
+    }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  return todos;
+}
+
+// ── PROCESSAR IMAGEM ──────────────────────────────────────────────────────────
+async function processarImagem(file) {
+  log(`🖼️ Convertendo imagem ${file.name} para IA…`);
+  const base64 = await fileToBase64(file);
+  const mimeType = getMimeType(file);
+  log(`🤖 IA imagem — ${file.name}…`);
+  const seen = new Set();
+  try {
+    const raw = await chamarIA({ tipo: 'imagem', base64, mimeType });
+    const itens = parseItens(raw, file.name, seen);
+    log(`✅ ${file.name}: ${itens.length} lançamento(s)`, 'ok');
+    return itens;
+  } catch(e) {
+    log(`❌ ${file.name}: ${e.message}`, 'err');
+    return [];
+  }
 }
 
 // ── ANÁLISE PRINCIPAL ─────────────────────────────────────────────────────────
 async function analisar() {
-  if (!arquivos.length) { log('Selecione ao menos um arquivo.','warn'); return; }
+  if (!arquivos.length) { log('Selecione ao menos um arquivo.', 'warn'); return; }
   allItems = []; logLines = []; prog(0);
   document.getElementById('btnAnalisar').disabled = true;
   document.getElementById('resultCard').style.display = 'none';
@@ -505,39 +540,44 @@ async function analisar() {
 
   for (let fi = 0; fi < arquivos.length; fi++) {
     const file = arquivos[fi];
-    log(`📄 Lendo: ${file.name}…`);
-    prog((fi/arquivos.length)*25);
-    let paginas;
+    prog((fi / arquivos.length) * 90);
+    let itens = [];
+
     try {
-      paginas = file.type==='application/pdf' ? await extrairPDF(file) : await extrairImagem(file);
-      log(`📝 ${file.name}: ${paginas.length} página(s)`);
-    } catch(e) { log(`❌ Erro ao ler ${file.name}: ${e.message}`,'err'); continue; }
-    prog(25 + (fi/arquivos.length)*65);
-    const itens = await parsearComIA(file.name, paginas);
-    allItems.push(...itens);
-    log(`✅ ${file.name}: ${itens.length} desconto(s) únicos`,'ok');
-    prog(25 + ((fi+1)/arquivos.length)*70);
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        itens = await processarPDF(file);
+      } else {
+        itens = await processarImagem(file);
+      }
+      allItems.push(...itens);
+      log(`✅ ${file.name}: ${itens.length} desconto(s) únicos`, 'ok');
+    } catch(e) {
+      log(`❌ Erro em ${file.name}: ${e.message}`, 'err');
+    }
   }
 
   prog(100);
+
   if (!allItems.length) {
-    log('Nenhum desconto encontrado. Verifique se os arquivos são extratos bancários.','warn');
+    log('Nenhum desconto encontrado. Verifique se os arquivos são extratos bancários.', 'warn');
     document.getElementById('btnAnalisar').disabled = false;
     return;
   }
-  log(`✅ Análise concluída — ${allItems.length} desconto(s) identificados.`,'ok');
+
+  log(`✅ Análise concluída — ${allItems.length} desconto(s) identificados.`, 'ok');
   document.getElementById('dotStatus').className = 'hdr-dot ok';
   document.getElementById('btnXLSX').disabled = false;
   document.getElementById('btnCSV').disabled = false;
   document.getElementById('resultCard').style.display = 'block';
   construirCatPills();
   renderizar();
+  document.getElementById('resultCard').scrollIntoView({behavior:'smooth'});
   document.getElementById('btnAnalisar').disabled = false;
 }
 
-// ── FILTROS ───────────────────────────────────────────────────────────────────
+// ── FILTROS E RENDER ──────────────────────────────────────────────────────────
 function construirCatPills() {
-  const cats = [...new Set(allItems.map(i=>i.categoria))].sort();
+  const cats = [...new Set(allItems.map(i => i.categoria))].sort();
   activeCats = new Set(cats);
   const div = document.getElementById('catPills');
   div.innerHTML = '';
@@ -561,24 +601,21 @@ function renderizar() {
 
   filtered = allItems.filter(it => {
     if (!activeCats.has(it.categoria)) return false;
-    if (dtS && it.data) { const [y,m]=dtS.split('-'); if (it.data<new Date(+y,+m-1,1)) return false; }
-    if (dtE && it.data) { const [y,m]=dtE.split('-'); const fim=new Date(+y,+m,1); if (it.data>=fim) return false; }
+    if (dtS && it.data) { const [y,m] = dtS.split('-'); if (it.data < new Date(+y,+m-1,1)) return false; }
+    if (dtE && it.data) { const [y,m] = dtE.split('-'); if (it.data >= new Date(+y,+m,1)) return false; }
     return true;
   });
 
-  // Totais por categoria
   const totCat = {};
   for (const it of filtered) totCat[it.categoria] = (totCat[it.categoria]||0) + it.valor;
   const totalGeral = Object.values(totCat).reduce((a,b)=>a+b,0);
 
-  // KPIs
   const cats = Object.entries(totCat).sort((a,b)=>b[1]-a[1]);
-  let kpiHtml = `
-    <div class="kpi-card hl">
-      <div class="kpi-label">💰 Total Geral</div>
-      <div class="kpi-val">R$ ${fmt(totalGeral)}</div>
-      <div class="kpi-sub">${filtered.length} lançamento(s)</div>
-    </div>`;
+  let kpiHtml = `<div class="kpi-card hl">
+    <div class="kpi-label">💰 Total Geral</div>
+    <div class="kpi-val">R$ ${fmt(totalGeral)}</div>
+    <div class="kpi-sub">${filtered.length} lançamento(s)</div>
+  </div>`;
   for (const [cat,val] of cats) {
     kpiHtml += `<div class="kpi-card">
       <div class="kpi-label">${esc(cat)}</div>
@@ -588,14 +625,13 @@ function renderizar() {
   }
   document.getElementById('kpiGrid').innerHTML = kpiHtml;
 
-  // Tabela
   let exibir = [];
   if (agrupar) {
     const mapa = new Map();
     for (const it of filtered) {
       if (!it.data) continue;
       const k = `${it.data.getFullYear()}-${String(it.data.getMonth()+1).padStart(2,'0')}`;
-      if (!mapa.has(k)) mapa.set(k,{k,val:0,cats:{}});
+      if (!mapa.has(k)) mapa.set(k, {k, val:0, cats:{}});
       const g = mapa.get(k);
       g.val += it.valor;
       g.cats[it.categoria] = (g.cats[it.categoria]||0) + it.valor;
@@ -623,7 +659,7 @@ function renderizar() {
       </tr>`).join('');
   }
 
-  document.getElementById('infoCount').textContent = `${exibir.length} linha(s) · ${filtered.length} desconto(s) original(is)`;
+  document.getElementById('infoCount').textContent = `${exibir.length} linha(s) · ${filtered.length} desconto(s)`;
   document.getElementById('tagTotal').textContent = `Total: R$ ${fmt(totalGeral)}`;
 }
 
@@ -643,14 +679,14 @@ function exportCSV() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `LAADV_Extratos_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click(); URL.revokeObjectURL(a.href);
+  a.click();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-function fmt(v) { return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function mesLabel(k) {
-  const [y,m] = k.split('-');
+function fmt(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mesLabel(k){
+  const [y,m]=k.split('-');
   const ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   return `${ms[+m-1]} ${y}`;
 }
@@ -661,25 +697,31 @@ const fileInput = document.getElementById('fileInput');
 
 function handleFiles(files) {
   arquivos = Array.from(files);
-  document.getElementById('fileList').innerHTML = arquivos.map(f=>`
-    <div class="file-item">
-      📄 <span class="file-item-name">${esc(f.name)}</span>
+  document.getElementById('fileList').innerHTML = arquivos.map(f => {
+    const isPDF = f.type==='application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+    const tipoLabel = isPDF
+      ? '<span class="file-item-tipo tipo-pdf">PDF</span>'
+      : '<span class="file-item-tipo tipo-img">IMG</span>';
+    return `<div class="file-item">
+      ${tipoLabel}
+      <span class="file-item-name">${esc(f.name)}</span>
       <span class="file-item-size">${(f.size/1024).toFixed(0)} KB</span>
-    </div>`).join('');
-  log(`${arquivos.length} arquivo(s) carregado(s). Clique em "Analisar com IA".`);
+    </div>`;
+  }).join('');
+  log(`${arquivos.length} arquivo(s) carregado(s) — clique em "Analisar com IA".`);
 }
 
-dropZone.onclick = ()=> fileInput.click();
-dropZone.ondragover = e=>{ e.preventDefault(); dropZone.classList.add('over'); };
-dropZone.ondragleave = ()=> dropZone.classList.remove('over');
-dropZone.ondrop = e=>{ e.preventDefault(); dropZone.classList.remove('over'); handleFiles(e.dataTransfer.files); };
-fileInput.onchange = e=> handleFiles(e.target.files);
+dropZone.onclick = () => fileInput.click();
+dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('over'); };
+dropZone.ondragleave = () => dropZone.classList.remove('over');
+dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove('over'); handleFiles(e.dataTransfer.files); };
+fileInput.onchange = e => handleFiles(e.target.files);
 document.getElementById('btnAnalisar').onclick = analisar;
 document.getElementById('btnXLSX').onclick = exportXLSX;
 document.getElementById('btnCSV').onclick = exportCSV;
 document.getElementById('chkMes').onchange = renderizar;
 document.getElementById('btnFiltrar').onclick = renderizar;
-document.getElementById('btnLimpar').onclick = ()=>{
+document.getElementById('btnLimpar').onclick = () => {
   arquivos=[]; allItems=[]; filtered=[]; logLines=[];
   ['fileList','tblBody','kpiGrid','catPills'].forEach(id=>document.getElementById(id).innerHTML='');
   document.getElementById('statusMsg').textContent='';
