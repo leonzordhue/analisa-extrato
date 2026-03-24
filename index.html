@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LAADV — Analisador v6.0 (Visão + Classificação Local)</title>
+<title>LAADV — Analisador v6.3 (Visão + Classificação Local)</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
-/* (mesmo CSS da versão anterior – omitido por brevidade, mas mantenha o original) */
 :root{
   --teal:#0B4A44;--teal-mid:#145E58;--teal-light:#1C7A72;
   --teal-bg:#EBF5F4;--teal-brd:#A8D4D0;
@@ -142,7 +141,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
 
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r"><span class="tdot"></span>Analisador v6.0 (Visão + Classificação Local)</span>
+  <span class="topbar-r"><span class="tdot"></span>Analisador v6.3 (Visão + Cache)</span>
 </div>
 
 <header class="site-header">
@@ -153,12 +152,12 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
       </div>
       <div>
         <div class="brand-name">Luís Albert Advocacia</div>
-        <div class="brand-sub">Analisador de Extratos · Visão IA + Regras Locais · v6.0</div>
+        <div class="brand-sub">Analisador de Extratos · Visão IA + Regras Locais · v6.3</div>
       </div>
     </div>
     <div class="hdr-right">
       <div class="hdr-status"><div class="hdr-dot" id="dotStatus"></div><span id="hdrTxt">Pronto</span></div>
-      <div class="header-badge">v6.0</div>
+      <div class="header-badge">v6.3</div>
     </div>
   </div>
 </header>
@@ -166,8 +165,8 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
 <div class="hero">
   <div class="hero-inner">
     <div class="hero-eye">// Repetição de Indébito · Bradesco · Itaú · CEF · Santander · BB</div>
-    <div class="hero-title">Analisador de Extratos<br>Bancários — v6.0</div>
-    <div class="hero-sub">Gemini Vision extrai a tabela; classificação local com base na vasta lista de termos do optijus.</div>
+    <div class="hero-title">Analisador de Extratos<br>Bancários — v6.3</div>
+    <div class="hero-sub">Gemini Vision extrai a tabela; classificação local com base na vasta lista de termos do optijus. Cache do modelo que funcionou evita tentativas desnecessárias.</div>
   </div>
   <div class="hero-wave"><svg viewBox="0 0 1440 40" preserveAspectRatio="none"><path d="M0,30 C360,0 1080,40 1440,20 L1440,40 L0,40 Z"/></svg></div>
 </div>
@@ -181,11 +180,11 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
   </div>
   <div class="card-body">
     <div class="alert alert-warn">
-      ⚠️ <strong>Novo método:</strong> Cada página do PDF é renderizada como imagem e enviada ao Gemini Vision. A IA extrai data, descrição e valor. Depois, usamos a lista de palavras-chave do optijus para classificar as cobranças.
+      ⚠️ <strong>Cache ativado:</strong> Após a primeira página bem‑sucedida, o sistema usará o mesmo modelo e versão para as demais páginas, acelerando o processo.
     </div>
     <div class="cfg-strip">
       <label for="apiKey">🔑 Chave Gemini API:</label>
-      <input type="text" id="apiKey" placeholder="AIzaSy..." value="AIzaSyASj2h0nujx2gE7qk8hqSdnnDWVZY9At3I" spellcheck="false"/>
+      <input type="text" id="apiKey" placeholder="AIzaSy..." value="AIzaSyB5ku_hIRSYvWR7GfSv6WMN96OHb2Vk6aE" spellcheck="false"/>
       <button class="btn btn-outline" style="padding:.35em .9em;font-size:.72rem" onclick="testConexao()">🧪 Testar</button>
     </div>
     <div id="testResult" style="font-size:.73rem;margin-top:.3rem"></div>
@@ -263,7 +262,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand"><div class="footer-logo"><svg viewBox="0 0 48 48" fill="none"><path d="M8 38L20 10L27 27" stroke="#0B4A44"/><path d="M20 10L32 38" stroke="#0B4A44"/><path d="M17 28H27" stroke="#0B4A44"/></svg></div><div class="footer-nome">Luís Albert Advocacia</div></div>
-    <div class="footer-copy">LAADV v6.0 · Gemini Vision + Classificação Local · Manaus – AM<br>AKE — Axiomatic Kernel Engine</div>
+    <div class="footer-copy">LAADV v6.3 · Gemini Vision + Classificação Local · Manaus – AM<br>AKE — Axiomatic Kernel Engine</div>
   </div>
 </footer>
 
@@ -278,12 +277,15 @@ const SAFETY_SETTINGS = [
   {category:'HARM_CATEGORY_DANGEROUS_CONTENT', threshold:'BLOCK_NONE'}
 ];
 
-// Modelos testados em ordem de prioridade (mais estável primeiro)
+// Modelos disponíveis (conforme lista da chave)
 const MODELS = [
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-  'gemini-2.0-flash-exp'
+  'gemini-flash-latest',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash'
 ];
+
+// Cache do endpoint que funcionou
+let workingEndpoint = null; // { version, model }
 
 // ========== LISTA DE PALAVRAS-CHAVE (optijus2222.pdf) ==========
 const KEYWORDS_BY_CATEGORY = {
@@ -375,6 +377,7 @@ function togDebug(){ document.getElementById('debugBody').classList.toggle('open
 function prog(p){ document.getElementById('pFill').style.width=p+'%'; }
 function setDot(state){ document.getElementById('dotStatus').className='hdr-dot'+( state==='ok'?' ok':state==='err'?' err':state==='run'?' run':''); }
 
+// ========== TESTE DE CONEXÃO ==========
 async function testConexao(){
   const key = document.getElementById('apiKey').value.trim();
   const el = document.getElementById('testResult');
@@ -385,34 +388,43 @@ async function testConexao(){
   }
   el.textContent = '⏳ Testando...';
   setDot('run');
+  let anySuccess = false;
   for (const model of MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const res = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ contents:[{parts:[{text:'Responda apenas: OK'}]}], generationConfig:{temperature:0,maxOutputTokens:10} })
-      });
-      const data = await res.json();
-      if (data.error) {
-        log(`⚠️ Modelo ${model} falhou: ${data.error.message}`, 'warn');
-        continue;
-      }
-      if (data.candidates && data.candidates[0]) {
-        const txt = data.candidates[0].content.parts[0].text || '';
-        el.textContent = `✅ Conexão OK com ${model}. Resposta: "${txt.trim()}"`;
-        setDot('ok');
-        return;
-      }
-    } catch(e) {
-      log(`❌ Erro ao testar ${model}: ${e.message}`, 'err');
+    for (const version of ['v1', 'v1beta']) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`;
+        const res = await fetch(url, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ contents:[{parts:[{text:'Responda apenas: OK'}]}], generationConfig:{temperature:0,maxOutputTokens:10} })
+        });
+        const data = await res.json();
+        if (data.error) {
+          if (data.error.message.includes('Quota exceeded')) {
+            el.textContent = `⚠️ Cota esgotada para ${model} (${version}). Aguarde reset ou ative faturamento.`;
+            setDot('err');
+            return;
+          }
+          continue;
+        }
+        if (data.candidates && data.candidates[0]) {
+          const txt = data.candidates[0].content.parts[0].text || '';
+          el.textContent = `✅ Conexão OK com ${version}/${model}. Resposta: "${txt.trim()}"`;
+          setDot('ok');
+          anySuccess = true;
+          break;
+        }
+      } catch(e) {}
     }
+    if (anySuccess) break;
   }
-  el.textContent = '❌ Nenhum modelo respondeu. Verifique sua chave e ative a API Gemini no Google Cloud.';
-  setDot('err');
+  if (!anySuccess) {
+    el.textContent = '❌ Nenhum modelo respondeu. Verifique sua chave e cota.';
+    setDot('err');
+  }
 }
 
-// ========== EXTRAÇÃO VIA GEMINI VISION ==========
+// ========== EXTRAÇÃO VIA GEMINI VISION COM CACHE ==========
 async function chamarGeminiVision(base64Image, mimeType) {
   const key = document.getElementById('apiKey').value.trim();
   const prompt = `Extraia todas as linhas de débito (valores negativos) deste extrato bancário.
@@ -431,40 +443,67 @@ Se não houver débitos, retorne [].`;
     safetySettings: SAFETY_SETTINGS
   };
 
-  for (const model of MODELS) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  // Se já temos um endpoint que funcionou, usa ele diretamente
+  if (workingEndpoint) {
+    const { version, model } = workingEndpoint;
+    const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`;
     try {
-      log(`🤖 Tentando modelo ${model}...`);
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (data.error) {
-        log(`⚠️ Modelo ${model} retornou erro: ${data.error.message} (código ${data.error.code})`, 'warn');
-        dbg(`Erro ${model}`, JSON.stringify(data.error));
-        continue;
-      }
-      if (!data.candidates || !data.candidates[0]) {
-        log(`⚠️ Modelo ${model} não retornou candidatos.`, 'warn');
-        dbg(`Resposta sem candidatos ${model}`, JSON.stringify(data));
-        continue;
-      }
-      const raw = data.candidates[0].content.parts[0].text;
-      const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-      let parsed;
-      try { parsed = JSON.parse(clean); } catch(e) {
-        log(`⚠️ Modelo ${model} retornou JSON inválido.`, 'warn');
-        dbg(`JSON inválido ${model}`, raw.slice(0,300));
-        continue;
-      }
-      if (Array.isArray(parsed)) {
-        log(`✅ Modelo ${model} funcionou.`, 'ok');
+      if (!data.error && data.candidates?.[0]) {
+        const raw = data.candidates[0].content.parts[0].text;
+        const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+        let parsed;
+        try { parsed = JSON.parse(clean); } catch(e) { parsed = []; }
         return parsed;
       }
     } catch(e) {
-      log(`❌ Exceção no modelo ${model}: ${e.message}`, 'err');
-      dbg(`Exceção ${model}`, e.message);
+      // fallback: limpa cache e tenta novamente
+      workingEndpoint = null;
     }
   }
-  throw new Error('Nenhum modelo Gemini respondeu com sucesso');
+
+  // Caso contrário, percorre todas as combinações
+  for (const model of MODELS) {
+    for (const version of ['v1', 'v1beta']) {
+      const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${key}`;
+      try {
+        log(`🤖 Tentando ${version}/${model}...`);
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data.error) {
+          const errMsg = data.error.message;
+          if (errMsg.includes('Quota exceeded')) throw new Error('QuotaExceeded');
+          log(`⚠️ ${version}/${model} falhou: ${errMsg}`, 'warn');
+          dbg(`Erro ${version}/${model}`, JSON.stringify(data.error));
+          continue;
+        }
+        if (!data.candidates || !data.candidates[0]) {
+          log(`⚠️ ${version}/${model} não retornou candidatos.`, 'warn');
+          dbg(`Resposta sem candidatos ${version}/${model}`, JSON.stringify(data));
+          continue;
+        }
+        const raw = data.candidates[0].content.parts[0].text;
+        const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+        let parsed;
+        try { parsed = JSON.parse(clean); } catch(e) {
+          log(`⚠️ ${version}/${model} retornou JSON inválido.`, 'warn');
+          dbg(`JSON inválido ${version}/${model}`, raw.slice(0,300));
+          continue;
+        }
+        if (Array.isArray(parsed)) {
+          log(`✅ ${version}/${model} funcionou.`, 'ok');
+          workingEndpoint = { version, model };
+          return parsed;
+        }
+      } catch(e) {
+        if (e.message === 'QuotaExceeded') throw e;
+        log(`❌ Exceção no ${version}/${model}: ${e.message}`, 'err');
+        dbg(`Exceção ${version}/${model}`, e.message);
+      }
+    }
+  }
+  throw new Error('Nenhum modelo Gemini respondeu com sucesso. Verifique a chave e a cota.');
 }
 
 // ========== RENDERIZAÇÃO DAS PÁGINAS ==========
@@ -492,13 +531,15 @@ async function extrairDoPDF(file, progressCallback) {
         itensPagina = await chamarGeminiVision(base64, 'image/jpeg');
         break;
       } catch (err) {
+        if (err.message === 'QuotaExceeded') throw err;
         log(`⚠️ Erro na página ${i}: ${err.message}. Tentando novamente...`, 'warn');
         await esperar(3000);
       }
     }
     if (!Array.isArray(itensPagina)) itensPagina = [];
+    log(`📊 Página ${i}: ${itensPagina.length} débito(s) identificado(s).`, itensPagina.length ? 'ok' : 'warn');
     todosItens.push(...itensPagina);
-    await esperar(4000);
+    await esperar(4000); // rate limit
   }
   return todosItens;
 }
@@ -549,6 +590,7 @@ async function analisar() {
   if (!key) { log('Preencha a chave da API Gemini.','err'); return; }
 
   allItems = []; logLines = []; debugLines = [];
+  workingEndpoint = null; // reset cache a cada nova análise
   prog(0);
   document.getElementById('btnAnalisar').disabled = true;
   document.getElementById('resultCard').style.display = 'none';
@@ -568,6 +610,10 @@ async function analisar() {
       allItems.push(...itensClassificados);
       log(`✅ ${file.name}: ${itensClassificados.length} cobranças identificadas.`, 'ok');
     } catch (e) {
+      if (e.message === 'QuotaExceeded') {
+        log(`❌ Cota esgotada. Interrompendo análise.`, 'err');
+        break;
+      }
       log(`❌ ERRO em ${file.name}: ${e.message}`, 'err');
       dbg(`ERRO ${file.name}`, e.message);
     }
@@ -670,7 +716,7 @@ function renderizar() {
 
   const tbody = document.getElementById('tblBody');
   tbody.innerHTML = !exibir.length
-    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros.</div></div></tr>`
+    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros.</div></div></td></tr>`
     : exibir.map(r => `<tr>
         <td class="td-date">${esc(r.dataStr||'—')}</td>
         <td class="td-desc">${esc(r.descricao)}</td>
@@ -733,6 +779,7 @@ document.getElementById('chkMes').onchange = renderizar;
 document.getElementById('btnFiltrar').onclick = renderizar;
 document.getElementById('btnLimpar').onclick = () => {
   arquivos = []; allItems = []; filtered = []; logLines = []; debugLines = [];
+  workingEndpoint = null;
   ['fileList','tblBody','kpiGrid','catPills'].forEach(id=>document.getElementById(id).innerHTML='');
   document.getElementById('statusMsg').textContent='';
   document.getElementById('logBox').style.display='none';
