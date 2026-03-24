@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
+/* (mesmo CSS da versão anterior – omitido por brevidade, mas inclua exatamente o mesmo) */
 :root{
   --teal:#0B4A44;--teal-mid:#145E58;--teal-light:#1C7A72;
   --teal-bg:#EBF5F4;--teal-brd:#A8D4D0;
@@ -288,7 +289,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
           <th>Data</th><th>Descrição</th><th class="r">Valor (R$)</th><th>Categoria</th><th>Arquivo</th>
          </thead>
         <tbody id="tblBody"></tbody>
-      </table>
+       </table>
     </div>
     <div class="table-foot">
       <span id="infoCount"></span>
@@ -310,10 +311,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
 </footer>
 
 <script>
-// Configuração do pdf.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// Safety settings para a API Gemini
+// Safety settings
 const SAFETY_SETTINGS = [
   {category:'HARM_CATEGORY_HARASSMENT',        threshold:'BLOCK_NONE'},
   {category:'HARM_CATEGORY_HATE_SPEECH',       threshold:'BLOCK_NONE'},
@@ -321,39 +321,28 @@ const SAFETY_SETTINGS = [
   {category:'HARM_CATEGORY_DANGEROUS_CONTENT', threshold:'BLOCK_NONE'}
 ];
 
-// Prompt para classificação do CSV
+// Prompt de classificação (mesmo do Code.gs)
 const PROMPT_CLASSIFICACAO = `Você é um especialista em análise de extratos bancários para ações judiciais de repetição de indébito.
 
-Você receberá um arquivo CSV com as seguintes colunas:
-- data: dd/mm/aaaa
-- descricao: descrição completa do lançamento
-- valor: valor do débito (positivo)
-- arquivo: nome do arquivo de origem
-
-Sua tarefa é classificar cada linha em uma das categorias abaixo e retornar um array JSON.
+Você receberá um arquivo CSV com as colunas: data, descricao, valor, arquivo.
+Classifique cada linha nas categorias abaixo e retorne um array JSON.
 
 CATEGORIAS:
-1. "Parcela Empréstimo" → quando descrição contiver: PARCELA CREDITO PESSOAL, PAGTO ELETRON COBRANCA CREFISA, BV FINANCEIRA, PORTOCRED, DACASA, LIQUID. CONTRATO, CREDITO PESSOAL.
-2. "Mora/Juros" → quando descrição contiver: MORA CREDITO PESSOAL, ENCARGO SALDO VINCULADO, JUROS CHEQUE ESPECIAL, JUROS ROTATIVOS, JUROS MORA.
-3. "Tarifa Bancária" → quando descrição contiver: TARIFA, TAR 2 VIA, CESTA SERVICOS, PACOTE SERVICOS, ANUIDADE CARTAO, PADRONIZADO PRIORITARIOS.
-4. "Seguro" → quando descrição contiver: SEGURO VIDA, SEGURO PRESTAMISTA, PREMIO SEGURO.
-5. "IOF" → quando descrição contiver: IOF, IMP. OP. FINANCEIRAS.
+1. "Parcela Empréstimo" → descrição contém: PARCELA CREDITO PESSOAL, PAGTO ELETRON COBRANCA CREFISA, BV FINANCEIRA, PORTOCRED, DACASA, LIQUID. CONTRATO, CREDITO PESSOAL.
+2. "Mora/Juros" → descrição contém: MORA CREDITO PESSOAL, ENCARGO SALDO VINCULADO, JUROS CHEQUE ESPECIAL, JUROS ROTATIVOS, JUROS MORA.
+3. "Tarifa Bancária" → descrição contém: TARIFA, TAR 2 VIA, CESTA SERVICOS, PACOTE SERVICOS, ANUIDADE CARTAO, PADRONIZADO PRIORITARIOS.
+4. "Seguro" → descrição contém: SEGURO VIDA, SEGURO PRESTAMISTA, PREMIO SEGURO.
+5. "IOF" → descrição contém: IOF, IMP. OP. FINANCEIRAS.
 
-Caso a descrição não corresponda a nenhuma das acima, NÃO inclua essa linha no resultado.
+Se a descrição não corresponder a nenhuma, NÃO inclua a linha.
 
-Saída: array JSON puro, sem markdown, no formato:
-[
-  {"data":"dd/mm/aaaa","descricao":"...","valor":180.81,"categoria":"Parcela Empréstimo","arquivo":"arquivo.pdf"},
-  ...
-]
+Saída: array JSON puro, sem markdown.
 
 Agora, analise o CSV abaixo:
 `;
 
-// Estado global
 let arquivos = [], allItems = [], filtered = [], activeCats = new Set(), logLines = [], debugLines = [];
 
-// Utilitários
 function fmt(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function mesLabel(k){const[y,m]=k.split('-');return['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][+m-1]+' '+y}
@@ -396,7 +385,6 @@ function togDebug(){
 function prog(p){document.getElementById('pFill').style.width=p+'%'}
 function setDot(state){document.getElementById('dotStatus').className='hdr-dot'+( state==='ok'?' ok':state==='err'?' err':state==='run'?' run':'')}
 
-// Teste de conexão
 document.getElementById('modeSelect').addEventListener('change', function(){
   const isDirect = this.value === 'direct';
   document.getElementById('appsUrlLabel').style.display = isDirect?'none':'flex';
@@ -411,7 +399,8 @@ async function testConexao(){
   setDot('run');
   try {
     if(mode === 'direct'){
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+      // Modelo corrigido: gemini-1.5-flash
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
       const res = await fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -440,24 +429,18 @@ async function testConexao(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AKE AXIOM: extrairPDFParaCSV
-// Reconstrução das colunas por coordenadas, gerando CSV estruturado
+// Função principal de extração (corrigida: data por padrão, valor negativo)
 // ═══════════════════════════════════════════════════════════════════════════
 async function extrairPDFParaCSV(file) {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: ab}).promise;
-  const allRows = [];   // array de objetos: {data, descricao, doc, debito, credito, saldo}
+  const allRows = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
+    if (!content.items.length) continue;
 
-    if (!content.items.length) {
-      // Página escaneada – não tem texto
-      continue;
-    }
-
-    // 1. Obter todos os itens com coordenadas
     const items = content.items
       .filter(it => it.str && it.str.trim())
       .map(it => ({
@@ -466,10 +449,9 @@ async function extrairPDFParaCSV(file) {
         str: it.str.trim(),
         w: it.width || 0,
       }));
-
     if (items.length === 0) continue;
 
-    // 2. Agrupar por linha (tolerância 5pt)
+    // Agrupar por linha (tolerância 5pt)
     const linesMap = new Map();
     for (const it of items) {
       const yr = Math.round(it.y / 5) * 5;
@@ -477,19 +459,17 @@ async function extrairPDFParaCSV(file) {
       linesMap.get(yr).push(it);
     }
     const lines = [...linesMap.values()];
-    lines.sort((a, b) => b[0].y - a[0].y); // y maior = mais alto
+    lines.sort((a, b) => b[0].y - a[0].y);
 
-    // 3. Detectar colunas com base em todas as coordenadas X da página
+    // Detectar colunas
     const allX = items.map(it => it.x);
     allX.sort((a,b) => a - b);
     const colStarts = [allX[0]];
     for (let j = 1; j < allX.length; j++) {
-      if (allX[j] - allX[j-1] > 30) {
-        colStarts.push(allX[j]);
-      }
+      if (allX[j] - allX[j-1] > 30) colStarts.push(allX[j]);
     }
 
-    // 4. Para cada linha, atribuir cada item à coluna mais próxima
+    // Montar linhas de texto por coluna
     const rows = [];
     for (const lineItems of lines) {
       const row = new Array(colStarts.length).fill("");
@@ -498,90 +478,60 @@ async function extrairPDFParaCSV(file) {
         let bestIdx = 0, bestDist = Math.abs(it.x - colStarts[0]);
         for (let ci = 1; ci < colStarts.length; ci++) {
           const dist = Math.abs(it.x - colStarts[ci]);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestIdx = ci;
-          }
+          if (dist < bestDist) { bestDist = dist; bestIdx = ci; }
         }
         if (bestDist < 25) {
           row[bestIdx] = (row[bestIdx] ? row[bestIdx] + " " : "") + it.str;
         }
       }
-      // Se a linha não tiver dados, ignora
       if (row.every(cell => !cell)) continue;
       rows.push(row);
     }
 
-    // 5. Mapear as colunas esperadas: Data, Histórico, Docto, Débito, Crédito, Saldo
-    //    Procurar linha de cabeçalho que contenha "Data" e "Histórico"
-    let headerRow = null;
-    let dataCol = -1, descCol = -1, docCol = -1, debCol = -1, credCol = -1, saldoCol = -1;
+    // Processar cada linha
     for (const row of rows) {
-      const rowText = row.join(" ");
-      if (rowText.includes("Data") && rowText.includes("Histórico")) {
-        headerRow = row;
-        break;
-      }
-    }
-    if (headerRow) {
-      for (let ci = 0; ci < headerRow.length; ci++) {
-        const cell = headerRow[ci].toLowerCase();
-        if (cell.includes("data")) dataCol = ci;
-        else if (cell.includes("histórico") || cell.includes("descrição")) descCol = ci;
-        else if (cell.includes("docto")) docCol = ci;
-        else if (cell.includes("débito")) debCol = ci;
-        else if (cell.includes("crédito")) credCol = ci;
-        else if (cell.includes("saldo")) saldoCol = ci;
-      }
-    } else {
-      // Heurística: data tem barras, débito tem sinal de menos, descrição tem texto longo
-      for (let ci = 0; ci < colStarts.length; ci++) {
-        let sample = "";
-        for (const row of rows.slice(0, 20)) {
-          if (row[ci]) { sample = row[ci]; break; }
+      // 1. Encontrar data (dd/mm/aaaa)
+      let dataStr = "";
+      for (const cell of row) {
+        const match = cell.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (match) {
+          dataStr = `${match[1]}/${match[2]}/${match[3]}`;
+          break;
         }
-        if (sample.includes("/") && !sample.includes("-") && sample.length >= 8) dataCol = ci;
-        if (sample.includes("-") && !sample.includes("/") && !sample.includes(".")) debCol = ci;
-        if (sample.length > 10 && !sample.includes("/") && !sample.includes("-")) descCol = ci;
       }
-    }
 
-    // 6. Processar cada linha (ignorar cabeçalho)
-    for (const row of rows) {
-      if (row === headerRow) continue;
-
-      const dataStr = (dataCol !== -1 && row[dataCol]) ? row[dataCol] : "";
-      const desc = (descCol !== -1 && row[descCol]) ? row[descCol] : "";
-      const doc = (docCol !== -1 && row[docCol]) ? row[docCol] : "";
-      let debStr = (debCol !== -1 && row[debCol]) ? row[debCol] : "";
-      let credStr = (credCol !== -1 && row[credCol]) ? row[credCol] : "";
-
+      // 2. Encontrar valor negativo
       let valor = 0;
       let isDebit = false;
-      if (debStr) {
-        const match = debStr.match(/-?\d+[,.]?\d*/);
+      for (const cell of row) {
+        const match = cell.match(/-?\d+[,.]?\d*/);
         if (match) {
-          valor = Math.abs(parseFloat(match[0].replace(",", ".")));
-          isDebit = true;
-        }
-      } else if (credStr) {
-        const match = credStr.match(/\d+[,.]?\d*/);
-        if (match) {
-          valor = Math.abs(parseFloat(match[0].replace(",", ".")));
-          isDebit = false;
+          const num = parseFloat(match[0].replace(",", "."));
+          if (!isNaN(num) && num !== 0) {
+            if (match[0].startsWith("-") || cell.includes("-")) {
+              valor = Math.abs(num);
+              isDebit = true;
+              break;
+            }
+          }
         }
       }
 
-      if (valor > 0 && isDebit) {
-        // Normalizar data
-        let dataFormatada = "";
-        const dateMatch = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-        if (dateMatch) dataFormatada = `${dateMatch[1]}/${dateMatch[2]}/${dateMatch[3]}`;
-        else dataFormatada = "Data não identificada";
+      // 3. Construir descrição (todas as células que não são data nem valor)
+      const descParts = [];
+      for (const cell of row) {
+        const isDateCell = cell.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        const isValueCell = cell.match(/-?\d+[,.]?\d*/) && (cell.includes("-") || cell.includes(","));
+        if (!isDateCell && !isValueCell && cell.trim()) {
+          descParts.push(cell.trim());
+        }
+      }
+      const descricao = descParts.join(" ").replace(/\s+/g, " ");
 
+      if (valor > 0 && isDebit) {
         allRows.push({
-          data: dataFormatada,
-          descricao: (desc + " " + doc).trim().replace(/\s+/g, ' '),
+          data: dataStr || "Data não identificada",
+          descricao: descricao,
           valor: valor,
           arquivo: file.name
         });
@@ -597,9 +547,7 @@ async function extrairPDFParaCSV(file) {
   return csvRows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// AKE AXIOM: callGemini (classifica CSV)
-// ═══════════════════════════════════════════════════════════════════════════
+// Chamada para a IA (modelo corrigido)
 async function callGemini(csvData) {
   const key = document.getElementById('apiKey').value.trim();
   const mode = document.getElementById('modeSelect').value;
@@ -615,7 +563,8 @@ async function callGemini(csvData) {
 
   let raw;
   if (mode === 'direct') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+    // Modelo corrigido: gemini-1.5-flash
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -647,7 +596,6 @@ async function callGemini(csvData) {
   return raw;
 }
 
-// Parse da resposta
 function parseItens(raw, nomeArq, seen) {
   const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   let itens = [];
@@ -692,7 +640,6 @@ function parseItens(raw, nomeArq, seen) {
   return resultado;
 }
 
-// Processar um arquivo PDF (com texto)
 async function processarPDF(file) {
   log(`📄 Extraindo estrutura de ${file.name}...`);
   const csv = await extrairPDFParaCSV(file);
@@ -710,17 +657,12 @@ async function processarPDF(file) {
   return itens;
 }
 
-// Processar imagem ou PDF escaneado (fallback)
 async function processarImagem(file) {
-  // ... manter a lógica anterior de envio de imagem (não alterada)
-  // Por brevidade, mantemos a mesma implementação da versão anterior.
-  // Se não houver, podemos chamar um método genérico.
-  // Para este exemplo, apenas retornamos vazio e logamos que não está implementado.
+  // Fallback para imagens – não implementado neste exemplo
   log(`🖼️ Processamento de imagem ainda não implementado nesta versão.`, 'warn');
   return [];
 }
 
-// Pipeline principal
 async function analisar() {
   if (!arquivos.length) { log('Selecione ao menos um arquivo.','warn'); return; }
   const key = document.getElementById('apiKey').value.trim();
@@ -772,7 +714,6 @@ async function analisar() {
   document.getElementById('btnAnalisar').disabled = false;
 }
 
-// Filtros e renderização
 function construirCatPills() {
   const cats = [...new Set(allItems.map(i=>i.categoria))].sort();
   activeCats = new Set(cats);
@@ -851,7 +792,7 @@ function renderizar() {
 
   const tbody = document.getElementById('tblBody');
   tbody.innerHTML = !exibir.length
-    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`
+    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros selecionados.</div></div></tr>`
     : exibir.map(r => `<tr>
         <td class="td-date">${esc(r.dataStr||'—')}</td>
         <td class="td-desc">${esc(r.descricao)}</td>
@@ -864,7 +805,6 @@ function renderizar() {
   document.getElementById('tagTotal').textContent = `Total: R$ ${fmt(totalGeral)}`;
 }
 
-// Exportações
 function exportXLSX() {
   const rows = filtered.map(r => ({
     'Data': r.dataStr||'',
