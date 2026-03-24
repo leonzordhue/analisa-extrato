@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>LAADV — Analisador de Extratos Bancários v4.1</title>
+<title>LAADV — Analisador de Extratos Bancários v4.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
@@ -58,7 +58,6 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .hero-wave svg{display:block;width:100%;fill:var(--gray-bg);}
 
 .main-wrap{max-width:1200px;margin:0 auto;padding:0 1.5rem 5rem;}
-
 .card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:1.5rem;overflow:hidden;}
 .card-head{background:linear-gradient(to right,var(--teal),var(--teal-mid));padding:.9rem 1.4rem;display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-size:.82rem;font-weight:700;letter-spacing:.04em;color:#fff;}
@@ -68,7 +67,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 
 .drop-zone{border:2px dashed var(--teal-brd);border-radius:10px;background:var(--teal-bg);padding:2rem;text-align:center;cursor:pointer;transition:.2s;}
 .drop-zone:hover,.drop-zone.over{border-color:var(--teal);background:#d5ecea;}
-.drop-zone-icon{font-size:2rem;margin-bottom:.5rem;line-height:1;}
+.drop-zone-icon{font-size:2rem;margin-bottom:.5rem;}
 .drop-zone-title{font-size:.9rem;font-weight:700;color:var(--teal);}
 .drop-zone-sub{font-size:.72rem;color:var(--gray-mid);margin-top:.3rem;line-height:1.5;}
 
@@ -98,7 +97,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .btn:disabled{opacity:.45;pointer-events:none;}
 .btn-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.1rem;}
 
-.log-box{background:#0a1a18;border-radius:8px;padding:.8rem 1rem;font-size:.7rem;font-family:monospace;color:#7ecdc6;max-height:150px;overflow-y:auto;margin-top:.9rem;line-height:1.7;display:none;}
+.log-box{background:#0a1a18;border-radius:8px;padding:.8rem 1rem;font-size:.7rem;font-family:monospace;color:#7ecdc6;max-height:160px;overflow-y:auto;margin-top:.9rem;line-height:1.7;display:none;}
 .log-box .l-ok{color:#6ee7b7;}
 .log-box .l-err{color:#fca5a5;}
 .log-box .l-warn{color:#fcd34d;}
@@ -121,13 +120,12 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .filter-group input[type=checkbox]{accent-color:var(--teal);}
 .filter-group input[type=month]{font-family:var(--font);font-size:.75rem;color:var(--text);background:var(--white);border:1.5px solid var(--gray-brd);border-radius:7px;padding:.35rem .6rem;outline:none;}
 .filter-group input[type=month]:focus{border-color:var(--teal);}
-.sep{color:var(--gray-brd);font-size:.8rem;}
-.cat-pills{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;}
+.sep{color:var(--gray-brd);}
+.cat-pills{display:flex;flex-wrap:wrap;gap:.3rem;}
 .cat-pill{font-size:.68rem;font-weight:700;padding:.2em .75em;border-radius:100px;border:1.5px solid var(--gray-brd);background:var(--white);color:var(--gray-mid);cursor:pointer;transition:all .15s;}
-.cat-pill:hover{border-color:var(--teal-brd);color:var(--teal);}
 .cat-pill.active{background:var(--teal-bg);border-color:var(--teal);color:var(--teal);}
 
-.tbl-wrap{overflow-x:auto;max-height:540px;overflow-y:auto;}
+.tbl-wrap{overflow-x:auto;max-height:560px;overflow-y:auto;}
 .result-table{width:100%;border-collapse:collapse;font-size:.78rem;}
 .result-table thead tr{background:var(--teal);}
 .result-table thead th{padding:.75rem 1rem;font-size:.63rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.9);text-align:left;white-space:nowrap;}
@@ -141,7 +139,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .td-desc{max-width:340px;line-height:1.4;color:var(--text);}
 .td-arq{color:var(--gray-mid);font-size:.68rem;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .table-foot{padding:.5rem 1rem;font-size:.65rem;color:var(--gray-mid);border-top:1px solid var(--gray-brd);display:flex;justify-content:space-between;align-items:center;}
-.tag{display:inline-flex;align-items:center;font-size:.63rem;font-weight:700;padding:.2em .7em;border-radius:100px;letter-spacing:.04em;white-space:nowrap;}
+.tag{display:inline-flex;align-items:center;font-size:.63rem;font-weight:700;padding:.2em .7em;border-radius:100px;white-space:nowrap;}
 .tag-teal{background:var(--teal-bg);border:1px solid var(--teal-brd);color:var(--teal);}
 .empty-state{padding:3rem 2rem;text-align:center;}
 .empty-state-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4;}
@@ -165,7 +163,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r"><span class="topbar-dot"></span>Analisador de Extratos v4.1</span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador de Extratos v4.2</span>
 </div>
 
 <header class="site-header">
@@ -184,7 +182,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
         <div class="hdr-dot ok" id="dotStatus"></div>
         <span id="hdrStatusTxt">Pronto</span>
       </div>
-      <div class="header-badge">LAADV v4.1</div>
+      <div class="header-badge">LAADV v4.2</div>
     </div>
   </div>
 </header>
@@ -260,9 +258,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
           <label><input type="checkbox" id="chkMes"> Agrupar por mês</label>
         </div>
         <span class="sep">|</span>
-        <div class="filter-group">
-          🏷️ <div class="cat-pills" id="catPills"></div>
-        </div>
+        <div class="filter-group">🏷️ <div class="cat-pills" id="catPills"></div></div>
         <span class="sep">|</span>
         <div class="filter-group">
           📆
@@ -303,25 +299,33 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       </div>
       <div class="footer-nome">Luís Albert Advocacia</div>
     </div>
-    <div class="footer-copy">LAADV — Analisador de Extratos v4.1 · Motor Gemini AI · PDF + Imagens<br>Manaus – AM</div>
+    <div class="footer-copy">LAADV — Analisador de Extratos v4.2 · Motor Gemini AI<br>Manaus – AM</div>
   </div>
 </footer>
 
 <script>
-// ── CONFIGURAÇÃO ──────────────────────────────────────────────────────────────
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRkHW2YxbfggswbELyR3Mk2oqddLfahjlXinP8qSAES21kI-1bzMnr9VaIKUzsf_gy/exec';
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIGURAÇÃO
+// ─────────────────────────────────────────────────────────────────────────────
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbwRkHW2YxbfggswbELyR3Mk2oqddLfahjlXinP8qSAES21kI-1bzMnr9VaIKUzsf_gy/exec';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ESTADO
+// ─────────────────────────────────────────────────────────────────────────────
 let allItems = [], filtered = [], arquivos = [], activeCats = new Set(), logLines = [];
 
-// ── LOG ───────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// LOG / PROGRESSO
+// ─────────────────────────────────────────────────────────────────────────────
 function log(msg, tipo='') {
   const ts = new Date().toLocaleTimeString('pt-BR');
   logLines.push({ts, msg, tipo});
   const box = document.getElementById('logBox');
   box.style.display = 'block';
-  box.innerHTML = logLines.slice(-50).map(l => {
+  box.innerHTML = logLines.slice(-60).map(l => {
     const cls = l.tipo==='ok'?'l-ok':l.tipo==='err'?'l-err':l.tipo==='warn'?'l-warn':'';
     return `<span class="${cls}">[${l.ts}] ${esc(l.msg)}</span>`;
   }).join('\n');
@@ -333,101 +337,131 @@ function log(msg, tipo='') {
 }
 function prog(p) { document.getElementById('pFill').style.width = p+'%'; }
 
-// ── EXTRAÇÃO PDF (texto nativo) ───────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// EXTRAÇÃO DE TEXTO DO PDF — preservando estrutura de linhas
+// ERRO ANTERIOR: o pdf.js agrupa itens por coordenada Y mas a distância
+// usada era muito pequena, misturando células de colunas diferentes (Data,
+// Histórico, Valor) numa só linha sem separador, fazendo o Gemini não
+// conseguir associar descrição + valor.
+// CORREÇÃO: reconstruir linhas agrupando por Y com tolerância maior (6px),
+// e ordenar cada linha por X para preservar a sequência da esquerda para a
+// direita, colocando TAB entre itens da mesma linha.
+// ─────────────────────────────────────────────────────────────────────────────
 async function extrairTextoPDF(file) {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: ab}).promise;
-  const paginas = [];
+  const paginasTexto = [];
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
+
     if (!content.items.length) {
-      // Página sem texto = escaneada, precisará de análise visual
-      paginas.push(`=== Página ${i}/${pdf.numPages} [SEM TEXTO - ESCANEADA] ===`);
+      paginasTexto.push(`=== Página ${i}/${pdf.numPages} [ESCANEADA] ===`);
       continue;
     }
-    const byY = {};
+
+    // Agrupar itens por linha (tolerância Y de 4px)
+    const linhasMap = new Map();
     for (const item of content.items) {
-      const y = Math.round(item.transform[5]);
-      if (!byY[y]) byY[y] = [];
-      byY[y].push({x: item.transform[4], str: item.str});
+      if (!item.str.trim()) continue;
+      const y = Math.round(item.transform[5] / 4) * 4; // bucket de 4px
+      if (!linhasMap.has(y)) linhasMap.set(y, []);
+      linhasMap.get(y).push({ x: item.transform[4], str: item.str });
     }
-    const ys = Object.keys(byY).map(Number).sort((a,b) => b-a);
-    const linhas = ys.map(y => byY[y].sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ').trim()).filter(l=>l);
-    paginas.push(`=== Página ${i}/${pdf.numPages} ===\n${linhas.join('\n')}`);
+
+    // Ordenar linhas de cima para baixo (Y maior = mais alto no PDF)
+    const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b-a);
+
+    const linhas = ysOrdenados.map(y => {
+      const itens = linhasMap.get(y).sort((a,b) => a.x - b.x);
+      // Juntar com espaço, preservando separação entre colunas
+      let linha = '';
+      let lastX = null;
+      for (const it of itens) {
+        if (lastX !== null && it.x - lastX > 20) {
+          linha += '\t'; // gap grande = coluna diferente
+        }
+        linha += it.str;
+        lastX = it.x + (it.str.length * 5); // estimativa de largura
+      }
+      return linha.trim();
+    }).filter(l => l.length > 0);
+
+    paginasTexto.push(`=== Página ${i}/${pdf.numPages} ===\n${linhas.join('\n')}`);
   }
-  return paginas.join('\n\n');
+
+  return paginasTexto.join('\n\n');
 }
 
-// ── CONVERTER ARQUIVO PARA BASE64 ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CONVERTER ARQUIVO PARA BASE64
+// ─────────────────────────────────────────────────────────────────────────────
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      // Remove o prefixo "data:image/xxx;base64,"
-      const base64 = e.target.result.split(',')[1];
-      resolve(base64);
-    };
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-// ── DETECTAR MIME TYPE ────────────────────────────────────────────────────────
-function getMimeType(file) {
+function getMime(file) {
   if (file.type) return file.type;
   const ext = file.name.split('.').pop().toLowerCase();
-  const map = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', bmp:'image/bmp', webp:'image/webp', gif:'image/gif' };
-  return map[ext] || 'image/jpeg';
+  return ({jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',bmp:'image/bmp',webp:'image/webp'})[ext] || 'image/jpeg';
 }
 
-// ── CHAMADA AO APPS SCRIPT ────────────────────────────────────────────────────
-async function chamarIA(payload) {
-  const res = await fetch(APPS_SCRIPT_URL, {
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAMADA AO APPS SCRIPT
+// ─────────────────────────────────────────────────────────────────────────────
+async function chamarAppsScript(payload) {
+  const res = await fetch(APPS_URL, {
     method: 'POST',
-    headers: {'Content-Type': 'text/plain'},
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   });
-
-  if (!res.ok) throw new Error(`Servidor retornou status ${res.status}`);
-
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
-
   return data.result || '[]';
 }
 
-// ── PARSE RESULTADO DA IA ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PARSE DO JSON RETORNADO PELA IA
+// ─────────────────────────────────────────────────────────────────────────────
 function parseItens(raw, nomeArquivo, seen) {
-  const clean = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+  const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   let itens = [];
-  try {
-    itens = JSON.parse(clean);
-    if (!Array.isArray(itens)) itens = [];
-  } catch {
+  try { itens = JSON.parse(clean); } catch {
     const m = clean.match(/\[[\s\S]*\]/);
     if (m) try { itens = JSON.parse(m[0]); } catch {}
   }
+  if (!Array.isArray(itens)) return [];
 
   const resultado = [];
   for (const it of itens) {
-    const valor = Math.abs(Number(it.valor) || 0);
-    if (!valor) continue;
+    // Valor sempre positivo
+    const valor = Math.abs(parseFloat(String(it.valor||'0').replace(',','.')) || 0);
+    if (!valor || valor < 0.01) continue;
 
+    // Parse de data
     let dataObj = null, dataStr = 'Data não identificada';
-    if (it.data && it.data !== 'null' && it.data !== '') {
-      const p = String(it.data).split('/');
+    const dataRaw = String(it.data || '').trim();
+    if (dataRaw && dataRaw !== 'null') {
+      const p = dataRaw.split('/');
       if (p.length === 3) {
         let d = +p[0], m = +p[1], y = +p[2];
         if (y < 100) y += 2000;
-        if (y >= 2000 && y <= 2035 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        if (d>=1&&d<=31&&m>=1&&m<=12&&y>=2000&&y<=2035) {
           dataObj = new Date(y, m-1, d);
           dataStr = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
         }
       }
     }
 
-    const chave = `${nomeArquivo}|${dataStr}|${valor.toFixed(2)}|${(it.descricao||'').trim().slice(0,40)}`;
+    // Deduplicação
+    const chave = `${nomeArquivo}|${dataStr}|${valor.toFixed(2)}|${String(it.descricao||'').trim().slice(0,40).toLowerCase()}`;
     if (seen.has(chave)) continue;
     seen.add(chave);
 
@@ -435,28 +469,24 @@ function parseItens(raw, nomeArquivo, seen) {
       arquivo: nomeArquivo,
       data: dataObj,
       dataStr,
-      descricao: (it.descricao || '').trim().slice(0, 250),
+      descricao: String(it.descricao || '').trim().slice(0, 250),
       valor,
-      categoria: it.categoria || 'Outros Descontos'
+      categoria: String(it.categoria || 'Outros Descontos').trim()
     });
   }
   return resultado;
 }
 
-// ── PROCESSAR PDF ─────────────────────────────────────────────────────────────
-async function processarPDF(file) {
-  log(`📄 Extraindo texto de ${file.name}…`);
-  const texto = await extrairTextoPDF(file);
-  const temTexto = texto.replace(/=== Página.*===/g,'').trim().length > 50;
-
-  if (!temTexto) {
-    // PDF escaneado — converter cada página em imagem via canvas
-    log(`🖼️ ${file.name}: PDF escaneado detectado — análise visual página a página…`, 'warn');
-    return await processarPDFEscaneado(file);
-  }
-
-  // PDF com texto — enviar em chunks
-  const CHUNK = 4000;
+// ─────────────────────────────────────────────────────────────────────────────
+// PROCESSAR PDF COM TEXTO
+// ERRO ANTERIOR: o prompt não explicava o formato real do extrato Bradesco
+// (onde Data, Histórico e Valor ficam em linhas separadas dentro do mesmo
+// grupo de transação, pois o pdf.js os separa por Y).
+// CORREÇÃO: prompt agora explica exatamente o formato e instrui a IA a
+// associar valor negativo ao histórico anterior mais próximo.
+// ─────────────────────────────────────────────────────────────────────────────
+async function processarPDFTexto(file, texto) {
+  const CHUNK = 5000;
   const chunks = [];
   for (let i = 0; i < texto.length; i += CHUNK) chunks.push(texto.slice(i, i+CHUNK));
 
@@ -466,19 +496,21 @@ async function processarPDF(file) {
   for (let ci = 0; ci < chunks.length; ci++) {
     log(`🤖 IA texto — ${file.name}: bloco ${ci+1}/${chunks.length}…`);
     try {
-      const raw = await chamarIA({ tipo: 'texto', texto: chunks[ci] });
+      const raw = await chamarAppsScript({ tipo: 'texto', texto: chunks[ci] });
       const itens = parseItens(raw, file.name, seen);
       todos.push(...itens);
       log(`✅ Bloco ${ci+1}/${chunks.length}: ${itens.length} lançamento(s)`, 'ok');
     } catch(e) {
       log(`❌ Bloco ${ci+1}: ${e.message}`, 'err');
     }
-    if (ci < chunks.length - 1) await new Promise(r => setTimeout(r, 400));
+    if (ci < chunks.length - 1) await esperar(500);
   }
   return todos;
 }
 
-// ── PROCESSAR PDF ESCANEADO (página a página como imagem) ─────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PROCESSAR PDF ESCANEADO — renderiza página como imagem e envia ao Gemini
+// ─────────────────────────────────────────────────────────────────────────────
 async function processarPDFEscaneado(file) {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: ab}).promise;
@@ -489,38 +521,36 @@ async function processarPDFEscaneado(file) {
     log(`🖼️ ${file.name}: renderizando página ${i}/${pdf.numPages}…`);
     try {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({scale: 2.0});
+      const vp = page.getViewport({scale: 2.0});
       const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      await page.render({canvasContext: canvas.getContext('2d'), viewport}).promise;
-
-      // Converter canvas para base64
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
       const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
-      log(`🤖 IA imagem — ${file.name}: página ${i}/${pdf.numPages}…`);
-      const raw = await chamarIA({ tipo: 'imagem', base64, mimeType: 'image/jpeg' });
+      log(`🤖 IA imagem — ${file.name}: pág ${i}/${pdf.numPages}…`);
+      const raw = await chamarAppsScript({ tipo: 'imagem', base64, mimeType: 'image/jpeg' });
       const itens = parseItens(raw, file.name, seen);
       todos.push(...itens);
-      log(`✅ Página ${i}/${pdf.numPages}: ${itens.length} lançamento(s)`, 'ok');
-
+      log(`✅ Pág ${i}/${pdf.numPages}: ${itens.length} lançamento(s)`, 'ok');
     } catch(e) {
-      log(`❌ Página ${i}: ${e.message}`, 'err');
+      log(`❌ Pág ${i}: ${e.message}`, 'err');
     }
-    await new Promise(r => setTimeout(r, 400));
+    await esperar(500);
   }
   return todos;
 }
 
-// ── PROCESSAR IMAGEM ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PROCESSAR IMAGEM
+// ─────────────────────────────────────────────────────────────────────────────
 async function processarImagem(file) {
-  log(`🖼️ Convertendo imagem ${file.name} para IA…`);
+  log(`🖼️ Convertendo imagem ${file.name}…`);
   const base64 = await fileToBase64(file);
-  const mimeType = getMimeType(file);
-  log(`🤖 IA imagem — ${file.name}…`);
+  const mimeType = getMime(file);
   const seen = new Set();
   try {
-    const raw = await chamarIA({ tipo: 'imagem', base64, mimeType });
+    log(`🤖 IA imagem — ${file.name}…`);
+    const raw = await chamarAppsScript({ tipo: 'imagem', base64, mimeType });
     const itens = parseItens(raw, file.name, seen);
     log(`✅ ${file.name}: ${itens.length} lançamento(s)`, 'ok');
     return itens;
@@ -530,7 +560,9 @@ async function processarImagem(file) {
   }
 }
 
-// ── ANÁLISE PRINCIPAL ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ANÁLISE PRINCIPAL
+// ─────────────────────────────────────────────────────────────────────────────
 async function analisar() {
   if (!arquivos.length) { log('Selecione ao menos um arquivo.', 'warn'); return; }
   allItems = []; logLines = []; prog(0);
@@ -540,19 +572,35 @@ async function analisar() {
 
   for (let fi = 0; fi < arquivos.length; fi++) {
     const file = arquivos[fi];
-    prog((fi / arquivos.length) * 90);
+    prog(Math.round((fi / arquivos.length) * 85));
     let itens = [];
 
     try {
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        itens = await processarPDF(file);
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+      if (isPDF) {
+        log(`📄 Extraindo texto de ${file.name}…`);
+        const texto = await extrairTextoPDF(file);
+
+        // Verificar se PDF tem texto útil (mais de 100 chars fora dos cabeçalhos)
+        const textoUtil = texto.replace(/=== Página.*===/g,'').replace(/Bradesco Celular[\s\S]*?Saldo \(R\$\)/g,'').trim();
+
+        if (textoUtil.length > 100 && !texto.includes('[ESCANEADA]')) {
+          log(`📝 ${file.name}: PDF com texto detectado (${textoUtil.length} chars úteis)`);
+          itens = await processarPDFTexto(file, texto);
+        } else {
+          log(`🖼️ ${file.name}: PDF escaneado — análise visual página a página…`, 'warn');
+          itens = await processarPDFEscaneado(file);
+        }
       } else {
         itens = await processarImagem(file);
       }
+
       allItems.push(...itens);
-      log(`✅ ${file.name}: ${itens.length} desconto(s) únicos`, 'ok');
+      log(`✅ ${file.name}: ${itens.length} desconto(s) únicos encontrados`, 'ok');
+
     } catch(e) {
-      log(`❌ Erro em ${file.name}: ${e.message}`, 'err');
+      log(`❌ Erro fatal em ${file.name}: ${e.message}`, 'err');
     }
   }
 
@@ -575,7 +623,9 @@ async function analisar() {
   document.getElementById('btnAnalisar').disabled = false;
 }
 
-// ── FILTROS E RENDER ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTROS E RENDERIZAÇÃO
+// ─────────────────────────────────────────────────────────────────────────────
 function construirCatPills() {
   const cats = [...new Set(allItems.map(i => i.categoria))].sort();
   activeCats = new Set(cats);
@@ -601,8 +651,8 @@ function renderizar() {
 
   filtered = allItems.filter(it => {
     if (!activeCats.has(it.categoria)) return false;
-    if (dtS && it.data) { const [y,m] = dtS.split('-'); if (it.data < new Date(+y,+m-1,1)) return false; }
-    if (dtE && it.data) { const [y,m] = dtE.split('-'); if (it.data >= new Date(+y,+m,1)) return false; }
+    if (dtS && it.data) { const [y,m]=dtS.split('-'); if(it.data<new Date(+y,+m-1,1)) return false; }
+    if (dtE && it.data) { const [y,m]=dtE.split('-'); if(it.data>=new Date(+y,+m,1)) return false; }
     return true;
   });
 
@@ -610,13 +660,13 @@ function renderizar() {
   for (const it of filtered) totCat[it.categoria] = (totCat[it.categoria]||0) + it.valor;
   const totalGeral = Object.values(totCat).reduce((a,b)=>a+b,0);
 
-  const cats = Object.entries(totCat).sort((a,b)=>b[1]-a[1]);
+  // KPIs
   let kpiHtml = `<div class="kpi-card hl">
     <div class="kpi-label">💰 Total Geral</div>
     <div class="kpi-val">R$ ${fmt(totalGeral)}</div>
     <div class="kpi-sub">${filtered.length} lançamento(s)</div>
   </div>`;
-  for (const [cat,val] of cats) {
+  for (const [cat,val] of Object.entries(totCat).sort((a,b)=>b[1]-a[1])) {
     kpiHtml += `<div class="kpi-card">
       <div class="kpi-label">${esc(cat)}</div>
       <div class="kpi-val" style="font-size:1.2rem;">R$ ${fmt(val)}</div>
@@ -625,6 +675,7 @@ function renderizar() {
   }
   document.getElementById('kpiGrid').innerHTML = kpiHtml;
 
+  // Tabela
   let exibir = [];
   if (agrupar) {
     const mapa = new Map();
@@ -646,69 +697,63 @@ function renderizar() {
   }
 
   const tbody = document.getElementById('tblBody');
-  if (!exibir.length) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`;
-  } else {
-    tbody.innerHTML = exibir.map(r=>`
-      <tr>
+  tbody.innerHTML = !exibir.length
+    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`
+    : exibir.map(r=>`<tr>
         <td class="td-date">${esc(r.dataStr||'—')}</td>
         <td class="td-desc">${esc(r.descricao)}</td>
         <td class="td-val">R$ ${fmt(r.valor)}</td>
         <td><span class="tag tag-teal">${esc(r.categoria)}</span></td>
         <td class="td-arq" title="${esc(r.arquivo)}">${esc(r.arquivo)}</td>
       </tr>`).join('');
-  }
 
   document.getElementById('infoCount').textContent = `${exibir.length} linha(s) · ${filtered.length} desconto(s)`;
   document.getElementById('tagTotal').textContent = `Total: R$ ${fmt(totalGeral)}`;
 }
 
-// ── EXPORT ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────────────────────────────────────
 function exportXLSX() {
-  const dados = filtered.map(r=>({'Data':r.dataStr||'','Descrição':r.descricao,'Valor (R$)':r.valor,'Categoria':r.categoria,'Arquivo':r.arquivo}));
-  const ws = XLSX.utils.json_to_sheet(dados);
+  const ws = XLSX.utils.json_to_sheet(filtered.map(r=>({'Data':r.dataStr||'','Descrição':r.descricao,'Valor (R$)':r.valor,'Categoria':r.categoria,'Arquivo':r.arquivo})));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Descontos_Indevidos');
-  XLSX.writeFile(wb, `LAADV_Extratos_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `LAADV_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 function exportCSV() {
-  const dados = filtered.map(r=>({'Data':r.dataStr||'','Descrição':r.descricao,'Valor':r.valor,'Categoria':r.categoria,'Arquivo':r.arquivo}));
-  const ws = XLSX.utils.json_to_sheet(dados);
-  const csv = XLSX.utils.sheet_to_csv(ws);
-  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const ws = XLSX.utils.json_to_sheet(filtered.map(r=>({'Data':r.dataStr||'','Descrição':r.descricao,'Valor':r.valor,'Categoria':r.categoria,'Arquivo':r.arquivo})));
+  const blob = new Blob(['\uFEFF'+XLSX.utils.sheet_to_csv(ws)],{type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `LAADV_Extratos_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `LAADV_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 function fmt(v){return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function mesLabel(k){
-  const [y,m]=k.split('-');
-  const ms=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  return `${ms[+m-1]} ${y}`;
-}
+function mesLabel(k){const[y,m]=k.split('-');return['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][+m-1]+' '+y;}
+function esperar(ms){return new Promise(r=>setTimeout(r,ms));}
 
-// ── EVENTOS ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENTOS
+// ─────────────────────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 
 function handleFiles(files) {
   arquivos = Array.from(files);
   document.getElementById('fileList').innerHTML = arquivos.map(f => {
-    const isPDF = f.type==='application/pdf' || f.name.toLowerCase().endsWith('.pdf');
-    const tipoLabel = isPDF
-      ? '<span class="file-item-tipo tipo-pdf">PDF</span>'
-      : '<span class="file-item-tipo tipo-img">IMG</span>';
+    const isPDF = f.type==='application/pdf'||f.name.toLowerCase().endsWith('.pdf');
     return `<div class="file-item">
-      ${tipoLabel}
+      <span class="file-item-tipo ${isPDF?'tipo-pdf':'tipo-img'}">${isPDF?'PDF':'IMG'}</span>
       <span class="file-item-name">${esc(f.name)}</span>
       <span class="file-item-size">${(f.size/1024).toFixed(0)} KB</span>
     </div>`;
   }).join('');
-  log(`${arquivos.length} arquivo(s) carregado(s) — clique em "Analisar com IA".`);
+  log(`${arquivos.length} arquivo(s) carregado(s). Clique em "Analisar com IA".`);
 }
 
 dropZone.onclick = () => fileInput.click();
