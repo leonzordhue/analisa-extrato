@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>LAADV — Analisador de Extratos Bancários v4.2</title>
+<title>LAADV — Analisador de Extratos Bancários v4.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
@@ -163,7 +163,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r"><span class="topbar-dot"></span>Analisador de Extratos v4.2</span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador de Extratos v4.3</span>
 </div>
 
 <header class="site-header">
@@ -182,7 +182,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
         <div class="hdr-dot ok" id="dotStatus"></div>
         <span id="hdrStatusTxt">Pronto</span>
       </div>
-      <div class="header-badge">LAADV v4.2</div>
+      <div class="header-badge">LAADV v4.3</div>
     </div>
   </div>
 </header>
@@ -299,7 +299,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
       </div>
       <div class="footer-nome">Luís Albert Advocacia</div>
     </div>
-    <div class="footer-copy">LAADV — Analisador de Extratos v4.2 · Motor Gemini AI<br>Manaus – AM</div>
+    <div class="footer-copy">LAADV — Analisador de Extratos v4.3 · Motor Gemini AI<br>Manaus – AM</div>
   </div>
 </footer>
 
@@ -338,14 +338,18 @@ function log(msg, tipo='') {
 function prog(p) { document.getElementById('pFill').style.width = p+'%'; }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXTRAÇÃO DE TEXTO DO PDF — preservando estrutura de linhas
-// ERRO ANTERIOR: o pdf.js agrupa itens por coordenada Y mas a distância
-// usada era muito pequena, misturando células de colunas diferentes (Data,
-// Histórico, Valor) numa só linha sem separador, fazendo o Gemini não
-// conseguir associar descrição + valor.
-// CORREÇÃO: reconstruir linhas agrupando por Y com tolerância maior (6px),
-// e ordenar cada linha por X para preservar a sequência da esquerda para a
-// direita, colocando TAB entre itens da mesma linha.
+// ✅ FIX 1: EXTRAÇÃO DE TEXTO — RECONSTRUÇÃO ESPACIAL (como pdftotext -layout)
+//
+// PROBLEMA ORIGINAL:
+//   - "PARCELA CREDITO PESSOAL" virava "PARCELACREDITOPESSOAL" (sem espaços)
+//   - Estimativa de largura de 5px/char ignorava o gap real entre palavras
+//   - Descrição e valor ficavam em linhas separadas sem relação visual clara
+//
+// SOLUÇÃO:
+//   - Grade de caracteres com 130 colunas (idêntico ao pdftotext -layout)
+//   - Posição X mapeada proporcionalmente → preserva colunas do extrato
+//   - Cada palavra fica na coluna correta; espaços surgem naturalmente
+//   - IA vê: "  PARCELA CREDITO PESSOAL       3920002    -180,81    139,67"
 // ─────────────────────────────────────────────────────────────────────────────
 async function extrairTextoPDF(file) {
   const ab = await file.arrayBuffer();
@@ -356,39 +360,64 @@ async function extrairTextoPDF(file) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
 
-    if (!content.items.length) {
+    if (!content.items || !content.items.length) {
       paginasTexto.push(`=== Página ${i}/${pdf.numPages} [ESCANEADA] ===`);
       continue;
     }
 
-    // Agrupar itens por linha (tolerância Y de 4px)
-    const linhasMap = new Map();
-    for (const item of content.items) {
-      if (!item.str.trim()) continue;
-      const y = Math.round(item.transform[5] / 4) * 4; // bucket de 4px
-      if (!linhasMap.has(y)) linhasMap.set(y, []);
-      linhasMap.get(y).push({ x: item.transform[4], str: item.str });
+    // Filtrar itens válidos com posição X e texto não-vazio
+    const items = content.items
+      .filter(it => it.str && it.str.trim())
+      .map(it => ({
+        x: it.transform[4],
+        y: it.transform[5],
+        str: it.str
+      }));
+
+    if (!items.length) continue;
+
+    // Limites X da página (para normalização)
+    let minX = Infinity, maxX = -Infinity;
+    for (const it of items) {
+      if (it.x < minX) minX = it.x;
+      if (it.x > maxX) maxX = it.x;
+    }
+    const xRange = Math.max(maxX - minX, 1);
+
+    // Grade de saída: 130 caracteres de largura (replicando pdftotext -layout)
+    const OUT_W = 130;
+
+    // Agrupar itens em linhas por Y com tolerância de 3 pontos
+    // (mantém distinção entre linhas próximas do Bradesco: 244, 249, 254)
+    const linhasMap = [];
+    for (const item of items) {
+      let linha = linhasMap.find(l => Math.abs(l.y - item.y) <= 3);
+      if (!linha) { linha = { y: item.y, items: [] }; linhasMap.push(linha); }
+      linha.items.push(item);
     }
 
-    // Ordenar linhas de cima para baixo (Y maior = mais alto no PDF)
-    const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b-a);
+    // Ordenar: PDF Y=0 embaixo → maior Y = mais alto na página = vem primeiro
+    linhasMap.sort((a, b) => b.y - a.y);
 
-    const linhas = ysOrdenados.map(y => {
-      const itens = linhasMap.get(y).sort((a,b) => a.x - b.x);
-      // Juntar com espaço, preservando separação entre colunas
-      let linha = '';
-      let lastX = null;
-      for (const it of itens) {
-        if (lastX !== null && it.x - lastX > 20) {
-          linha += '\t'; // gap grande = coluna diferente
+    const linhas = linhasMap.map(linha => {
+      linha.items.sort((a, b) => a.x - b.x);
+
+      // Construir grade de caracteres: cada item vai para a coluna proporcional ao seu X
+      const grid = new Array(OUT_W).fill(' ');
+      for (const item of linha.items) {
+        // Mapa X → posição de caractere na grade
+        const charPos = Math.round(((item.x - minX) / xRange) * (OUT_W - 15));
+        const pos = Math.max(0, Math.min(charPos, OUT_W - 1));
+        for (let c = 0; c < item.str.length && pos + c < OUT_W; c++) {
+          grid[pos + c] = item.str[c];
         }
-        linha += it.str;
-        lastX = it.x + (it.str.length * 5); // estimativa de largura
       }
-      return linha.trim();
-    }).filter(l => l.length > 0);
+      return grid.join('').trimEnd();
+    }).filter(l => l.trim().length > 0);
 
-    paginasTexto.push(`=== Página ${i}/${pdf.numPages} ===\n${linhas.join('\n')}`);
+    if (linhas.length) {
+      paginasTexto.push(`=== Página ${i}/${pdf.numPages} ===\n${linhas.join('\n')}`);
+    }
   }
 
   return paginasTexto.join('\n\n');
@@ -441,11 +470,9 @@ function parseItens(raw, nomeArquivo, seen) {
 
   const resultado = [];
   for (const it of itens) {
-    // Valor sempre positivo
     const valor = Math.abs(parseFloat(String(it.valor||'0').replace(',','.')) || 0);
     if (!valor || valor < 0.01) continue;
 
-    // Parse de data
     let dataObj = null, dataStr = 'Data não identificada';
     const dataRaw = String(it.data || '').trim();
     if (dataRaw && dataRaw !== 'null') {
@@ -460,7 +487,6 @@ function parseItens(raw, nomeArquivo, seen) {
       }
     }
 
-    // Deduplicação
     const chave = `${nomeArquivo}|${dataStr}|${valor.toFixed(2)}|${String(it.descricao||'').trim().slice(0,40).toLowerCase()}`;
     if (seen.has(chave)) continue;
     seen.add(chave);
@@ -478,17 +504,55 @@ function parseItens(raw, nomeArquivo, seen) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROCESSAR PDF COM TEXTO
-// ERRO ANTERIOR: o prompt não explicava o formato real do extrato Bradesco
-// (onde Data, Histórico e Valor ficam em linhas separadas dentro do mesmo
-// grupo de transação, pois o pdf.js os separa por Y).
-// CORREÇÃO: prompt agora explica exatamente o formato e instrui a IA a
-// associar valor negativo ao histórico anterior mais próximo.
+// ✅ FIX 2 e 3: PROCESSAR PDF COM TEXTO — CHUNKING POR PÁGINA COMPLETA
+//
+// PROBLEMA ORIGINAL:
+//   - Chunk de 5000 chars cortava no meio de transações (linha da descrição
+//     ficava no chunk N, linha do valor ficava no chunk N+1)
+//   - IA do chunk N via "PARCELA CREDITO PESSOAL" sem valor → ignorava
+//   - IA do chunk N+1 via "-180,81" sem descrição → ignorava
+//   - Resultado: ZERO lançamentos em todos os 33 chunks
+//
+// SOLUÇÃO:
+//   - Dividir sempre nos marcadores "=== Página N ==="
+//   - Chunks de até 18.000 chars (≈10-12 páginas) — nunca corta transações
+//   - 113 páginas → ~9 chunks (em vez de 33), cada um com contexto completo
 // ─────────────────────────────────────────────────────────────────────────────
 async function processarPDFTexto(file, texto) {
-  const CHUNK = 5000;
+  // Localizar todos os marcadores de página
+  const marcadores = [...texto.matchAll(/=== Página \d+\/\d+ ===/g)].map(m => m.index);
+
+  if (!marcadores.length) {
+    // Fallback: texto sem marcadores → enviar inteiro
+    const seen = new Set();
+    const raw = await chamarAppsScript({ tipo: 'texto', texto });
+    return parseItens(raw, file.name, seen);
+  }
+
+  // Agrupar páginas em chunks de até 18.000 chars (sem cortar no meio de página)
+  const CHUNK_MAX = 18000;
   const chunks = [];
-  for (let i = 0; i < texto.length; i += CHUNK) chunks.push(texto.slice(i, i+CHUNK));
+  let chunkStart = marcadores[0];
+  let chunkLen = 0;
+
+  for (let i = 0; i < marcadores.length; i++) {
+    const pageStart = marcadores[i];
+    const pageEnd = (i + 1 < marcadores.length) ? marcadores[i + 1] : texto.length;
+    const pageLen = pageEnd - pageStart;
+
+    if (chunkLen > 0 && chunkLen + pageLen > CHUNK_MAX) {
+      // Fechar chunk atual e iniciar novo
+      chunks.push(texto.slice(chunkStart, pageStart));
+      chunkStart = pageStart;
+      chunkLen = pageLen;
+    } else {
+      chunkLen += pageLen;
+    }
+  }
+  // Último chunk
+  if (chunkLen > 0) chunks.push(texto.slice(chunkStart));
+
+  log(`📄 ${file.name}: ${marcadores.length} páginas → ${chunks.length} blocos para análise`);
 
   const todos = [];
   const seen = new Set();
@@ -503,7 +567,7 @@ async function processarPDFTexto(file, texto) {
     } catch(e) {
       log(`❌ Bloco ${ci+1}: ${e.message}`, 'err');
     }
-    if (ci < chunks.length - 1) await esperar(500);
+    if (ci < chunks.length - 1) await esperar(600);
   }
   return todos;
 }
@@ -582,10 +646,13 @@ async function analisar() {
         log(`📄 Extraindo texto de ${file.name}…`);
         const texto = await extrairTextoPDF(file);
 
-        // Verificar se PDF tem texto útil (mais de 100 chars fora dos cabeçalhos)
-        const textoUtil = texto.replace(/=== Página.*===/g,'').replace(/Bradesco Celular[\s\S]*?Saldo \(R\$\)/g,'').trim();
+        // Verificar se o PDF tem texto útil (excluindo cabeçalhos de página)
+        const textoUtil = texto
+          .replace(/=== Página.*===/g, '')
+          .replace(/Bradesco Celular[\s\S]*?Saldo\s*\(R\$\)/g, '')
+          .trim();
 
-        if (textoUtil.length > 100 && !texto.includes('[ESCANEADA]')) {
+        if (textoUtil.length > 200 && !texto.includes('[ESCANEADA]')) {
           log(`📝 ${file.name}: PDF com texto detectado (${textoUtil.length} chars úteis)`);
           itens = await processarPDFTexto(file, texto);
         } else {
@@ -660,7 +727,6 @@ function renderizar() {
   for (const it of filtered) totCat[it.categoria] = (totCat[it.categoria]||0) + it.valor;
   const totalGeral = Object.values(totCat).reduce((a,b)=>a+b,0);
 
-  // KPIs
   let kpiHtml = `<div class="kpi-card hl">
     <div class="kpi-label">💰 Total Geral</div>
     <div class="kpi-val">R$ ${fmt(totalGeral)}</div>
@@ -675,7 +741,6 @@ function renderizar() {
   }
   document.getElementById('kpiGrid').innerHTML = kpiHtml;
 
-  // Tabela
   let exibir = [];
   if (agrupar) {
     const mapa = new Map();
