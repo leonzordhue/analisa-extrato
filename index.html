@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
-/* ========== CSS ========== */
+/* (mesmo CSS da versão anterior – omitido por brevidade, mas mantenha o original) */
 :root{
   --teal:#0B4A44;--teal-mid:#145E58;--teal-light:#1C7A72;
   --teal-bg:#EBF5F4;--teal-brd:#A8D4D0;
@@ -248,7 +248,9 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);min-hei
     </div>
     <div class="tbl-wrap">
       <table class="result-table">
-        <thead><tr><th>Data</th><th>Descrição</th><th class="r">Valor (R$)</th><th>Categoria</th><th>Arquivo</th></tr></thead>
+        <thead>…
+          <th>Data</th><th>Descrição</th><th class="r">Valor (R$)</th><th>Categoria</th><th>Arquivo</th>
+         </thead>
         <tbody id="tblBody"></tbody>
       </table>
     </div>
@@ -276,11 +278,11 @@ const SAFETY_SETTINGS = [
   {category:'HARM_CATEGORY_DANGEROUS_CONTENT', threshold:'BLOCK_NONE'}
 ];
 
-// Modelos tentados em ordem (todos suportam imagens)
+// Modelos testados em ordem de prioridade (mais estável primeiro)
 const MODELS = [
-  'gemini-2.0-flash-exp',
   'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-1.5-pro',
+  'gemini-2.0-flash-exp'
 ];
 
 // ========== LISTA DE PALAVRAS-CHAVE (optijus2222.pdf) ==========
@@ -320,9 +322,6 @@ const KEYWORDS_BY_CATEGORY = {
   ]
 };
 
-// Concatena todas as palavras-chave para busca (case-insensitive)
-const ALL_KEYWORDS = Object.values(KEYWORDS_BY_CATEGORY).flat();
-
 function classificarPorKeywords(descricao) {
   const upper = descricao.toUpperCase();
   for (const [categoria, palavras] of Object.entries(KEYWORDS_BY_CATEGORY)) {
@@ -332,7 +331,7 @@ function classificarPorKeywords(descricao) {
       }
     }
   }
-  return "Outros Descontos"; // não classificado, mas ainda mantemos? O filtro final pode remover.
+  return "Outros Descontos";
 }
 
 // ========== UTILITÁRIOS ==========
@@ -379,6 +378,11 @@ function setDot(state){ document.getElementById('dotStatus').className='hdr-dot'
 async function testConexao(){
   const key = document.getElementById('apiKey').value.trim();
   const el = document.getElementById('testResult');
+  if (!key) {
+    el.textContent = '❌ Chave não preenchida.';
+    setDot('err');
+    return;
+  }
   el.textContent = '⏳ Testando...';
   setDot('run');
   for (const model of MODELS) {
@@ -390,14 +394,21 @@ async function testConexao(){
         body:JSON.stringify({ contents:[{parts:[{text:'Responda apenas: OK'}]}], generationConfig:{temperature:0,maxOutputTokens:10} })
       });
       const data = await res.json();
-      if(!data.error){
-        el.textContent = `✅ Conexão OK com ${model}`;
+      if (data.error) {
+        log(`⚠️ Modelo ${model} falhou: ${data.error.message}`, 'warn');
+        continue;
+      }
+      if (data.candidates && data.candidates[0]) {
+        const txt = data.candidates[0].content.parts[0].text || '';
+        el.textContent = `✅ Conexão OK com ${model}. Resposta: "${txt.trim()}"`;
         setDot('ok');
         return;
       }
-    } catch(e) {}
+    } catch(e) {
+      log(`❌ Erro ao testar ${model}: ${e.message}`, 'err');
+    }
   }
-  el.textContent = '❌ Nenhum modelo respondeu. Verifique sua chave.';
+  el.textContent = '❌ Nenhum modelo respondeu. Verifique sua chave e ative a API Gemini no Google Cloud.';
   setDot('err');
 }
 
@@ -423,19 +434,35 @@ Se não houver débitos, retorne [].`;
   for (const model of MODELS) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     try {
+      log(`🤖 Tentando modelo ${model}...`);
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (data.error) {
-        console.warn(`Modelo ${model} falhou:`, data.error.message);
+        log(`⚠️ Modelo ${model} retornou erro: ${data.error.message} (código ${data.error.code})`, 'warn');
+        dbg(`Erro ${model}`, JSON.stringify(data.error));
         continue;
       }
-      if (!data.candidates || !data.candidates[0]) continue;
+      if (!data.candidates || !data.candidates[0]) {
+        log(`⚠️ Modelo ${model} não retornou candidatos.`, 'warn');
+        dbg(`Resposta sem candidatos ${model}`, JSON.stringify(data));
+        continue;
+      }
       const raw = data.candidates[0].content.parts[0].text;
       const clean = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
       let parsed;
-      try { parsed = JSON.parse(clean); } catch(e) { continue; }
-      if (Array.isArray(parsed)) return parsed;
-    } catch(e) { console.warn(e); }
+      try { parsed = JSON.parse(clean); } catch(e) {
+        log(`⚠️ Modelo ${model} retornou JSON inválido.`, 'warn');
+        dbg(`JSON inválido ${model}`, raw.slice(0,300));
+        continue;
+      }
+      if (Array.isArray(parsed)) {
+        log(`✅ Modelo ${model} funcionou.`, 'ok');
+        return parsed;
+      }
+    } catch(e) {
+      log(`❌ Exceção no modelo ${model}: ${e.message}`, 'err');
+      dbg(`Exceção ${model}`, e.message);
+    }
   }
   throw new Error('Nenhum modelo Gemini respondeu com sucesso');
 }
@@ -450,7 +477,7 @@ async function extrairDoPDF(file, progressCallback) {
   for (let i = 1; i <= total; i++) {
     if (progressCallback) progressCallback(i, total);
     const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 1.2 }); // 1.2 é bom equilíbrio qualidade/tamanho
+    const viewport = page.getViewport({ scale: 1.2 });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
@@ -471,7 +498,7 @@ async function extrairDoPDF(file, progressCallback) {
     }
     if (!Array.isArray(itensPagina)) itensPagina = [];
     todosItens.push(...itensPagina);
-    await esperar(4000); // rate limit
+    await esperar(4000);
   }
   return todosItens;
 }
@@ -498,7 +525,7 @@ function classificarItens(itens, nomeArquivo) {
     }
     const desc = String(item.descricao || '').trim();
     const categoria = classificarPorKeywords(desc);
-    if (categoria === 'Outros Descontos') continue; // só mantemos os que casam com alguma regra
+    if (categoria === 'Outros Descontos') continue;
 
     const chave = `${nomeArquivo}|${dataStr}|${valor.toFixed(2)}|${desc.slice(0,30).toLowerCase()}`;
     if (seen.has(chave)) continue;
@@ -643,14 +670,14 @@ function renderizar() {
 
   const tbody = document.getElementById('tblBody');
   tbody.innerHTML = !exibir.length
-    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros.</div></div></td></tr>`
+    ? `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros.</div></div></tr>`
     : exibir.map(r => `<tr>
         <td class="td-date">${esc(r.dataStr||'—')}</td>
         <td class="td-desc">${esc(r.descricao)}</td>
         <td class="td-val">R$ ${fmt(r.valor)}</td>
         <td><span class="tag tag-teal">${esc(r.categoria)}</span></td>
         <td class="td-arq" title="${esc(r.arquivo)}">${esc(r.arquivo)}</td>
-      </tr>`).join('');
+       </tr>`).join('');
 
   document.getElementById('infoCount').textContent = `${exibir.length} linha(s) · ${filtered.length} desconto(s)`;
   document.getElementById('tagTotal').textContent = `Total: R$ ${fmt(totalGeral)}`;
