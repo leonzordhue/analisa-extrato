@@ -567,7 +567,7 @@ async function processarPDFTexto(file, texto) {
     } catch(e) {
       log(`❌ Bloco ${ci+1}: ${e.message}`, 'err');
     }
-    if (ci < chunks.length - 1) await esperar(600);
+    if (ci < chunks.length - 1) await esperar(4500);
   }
   return todos;
 }
@@ -599,7 +599,7 @@ async function processarPDFEscaneado(file) {
     } catch(e) {
       log(`❌ Pág ${i}: ${e.message}`, 'err');
     }
-    await esperar(500);
+    await esperar(4500);
   }
   return todos;
 }
