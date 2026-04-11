@@ -1031,7 +1031,10 @@ function parseSantanderText(texto) {
 
 // ── Parser genérico — Bradesco textual (fallback) ─────────────────────────────
 function parseGenericoText(texto) {
-  const RE_PAR = /(-\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})/g;
+  // Aceita: DESCRICAO [NRDOC] -VALOR [SALDO]
+  // Formato Bradesco real: -8,91 pode vir sem saldo na mesma linha
+  const RE_DEB_PAR = /(-\d{1,3}(?:\.\d{3})*,\d{2})\s+\d{1,3}(?:\.\d{3})*,\d{2}/g;
+  const RE_DEB_SIM = /(-\d{1,3}(?:\.\d{3})*,\d{2})\s*$/;
   const linhas = texto.split("\n");
   const r = [];
   let dataCurr = null;
@@ -1039,18 +1042,35 @@ function parseGenericoText(texto) {
 
   for (const raw of linhas) {
     const linha = raw.trim();
+    if (!linha) continue;
     const mData = linha.match(reData);
     if (mData) dataCurr = mData[1];
     if (!dataCurr) continue;
 
+    // Tenta primeiro o par (débito + saldo)
+    RE_DEB_PAR.lastIndex = 0;
+    let achou = false;
     let m;
-    RE_PAR.lastIndex = 0;
-    while ((m = RE_PAR.exec(linha)) !== null) {
+    while ((m = RE_DEB_PAR.exec(linha)) !== null) {
+      achou = true;
       const debStr = m[1];
-      const desc = linha.slice(0, m.index).replace(reData,"").trim();
+      const desc = linha.slice(0, m.index).replace(reData,"").replace(/\d{5,}/g,"").trim();
       if (!desc || isTransfer(desc)) continue;
       const val = parseFloat(debStr.replace(/\./g,"").replace(",",".").replace("-",""));
       if (val > 0.009 && val < 50000) r.push({data:dataCurr, descricao:desc.slice(0,250), valor:val});
+    }
+
+    // Fallback: débito sozinho no final da linha
+    if (!achou) {
+      const mSim = linha.match(RE_DEB_SIM);
+      if (mSim) {
+        const debStr = mSim[1];
+        const desc = linha.slice(0, linha.lastIndexOf(debStr)).replace(reData,"").replace(/\d{5,}/g,"").trim();
+        if (desc && !isTransfer(desc)) {
+          const val = parseFloat(debStr.replace(/\./g,"").replace(",",".").replace("-",""));
+          if (val > 0.009 && val < 50000) r.push({data:dataCurr, descricao:desc.slice(0,250), valor:val});
+        }
+      }
     }
   }
   return r;
