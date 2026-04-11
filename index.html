@@ -1203,26 +1203,18 @@ function log(msg, tipo="") {
 const dropZone = document.getElementById("dropZone");
 const fileInput = document.getElementById("fileInput");
 
-// @axiom A8: handleFiles — transcrição literal dos arquivos selecionados
-// @ake_rule: nunca modificar arquivos fora do escopo de seleção
 function handleFiles(files) {
-  if (!files || files.length === 0) return;
-  arquivos = Array.from(files).filter(f => f.name.toLowerCase().endsWith(".pdf"));
-  if (!arquivos.length) {
-    log("Nenhum PDF encontrado nos arquivos selecionados.", "warn");
-    return;
-  }
-  document.getElementById("fileList").innerHTML = arquivos.map(f => `
-    <div class="file-item">
-      <span style="font-size:.65rem;font-weight:700;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-brd);padding:.1em .5em;border-radius:4px">PDF</span>
+  arquivos = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  document.getElementById('fileList').innerHTML = arquivos.map(f =>
+    `<div class="file-item">
+      <span class="file-status fs-ok">PDF</span>
       <span class="file-name">${esc(f.name)}</span>
       <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
-    </div>`).join("");
-  log(`${arquivos.length} arquivo(s) pronto(s) para análise.`);
+    </div>`
+  ).join('');
+  log(`${arquivos.length} arquivo(s) carregado(s).`);
 }
 
-// @source v6.3 — padrão validado em produção (transcript 2026-04-10)
-// onclick dispara fileInput.click() diretamente no gesto do usuário — funciona em todos os browsers
 dropZone.onclick = () => fileInput.click();
 dropZone.ondragover  = e => { e.preventDefault(); dropZone.classList.add("over"); };
 dropZone.ondragleave = () => dropZone.classList.remove("over");
