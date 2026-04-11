@@ -1207,9 +1207,9 @@ function handleFiles(files) {
   arquivos = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
   document.getElementById('fileList').innerHTML = arquivos.map(f =>
     `<div class="file-item">
-      <span class="file-status fs-ok">PDF</span>
-      <span class="file-name">${esc(f.name)}</span>
-      <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
+      <span class="tipo-pill">PDF</span>
+      <span class="file-item-name">${esc(f.name)}</span>
+      <span class="file-item-size">${(f.size/1024).toFixed(0)} KB</span>
     </div>`
   ).join('');
   log(`${arquivos.length} arquivo(s) carregado(s).`);
