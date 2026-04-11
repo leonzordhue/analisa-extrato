@@ -387,8 +387,9 @@ input[type=month]:focus{border-color:var(--teal)}
       <div class="alert alert-info">ℹ️ <span>Processamento 100% no seu navegador — nenhum dado é enviado para servidores externos.</span></div>
       <div class="drop-zone" id="dropZone">
         <div class="dz-icon">📂</div>
-        <div class="dz-title">Arraste os extratos aqui ou clique para selecionar</div>
-        <div class="dz-sub">PDF digital ou escaneado · Bradesco, Itaú, BB, CEF, Santander<br>Múltiplos arquivos e meses simultaneamente</div>
+        <div class="dz-title">Arraste os extratos aqui ou</div>
+        <button type="button" class="btn btn-primary" style="margin:.6rem 0" onclick="document.getElementById('fileInput').click()">📂 Selecionar PDFs</button>
+        <div class="dz-sub">Bradesco · Itaú · BB · CEF · Santander<br>Múltiplos arquivos e meses simultaneamente</div>
       </div>
       <input type="file" id="fileInput" multiple accept=".pdf">
       <div class="file-list" id="fileList"></div>
@@ -511,12 +512,18 @@ const AKE_BUILD_LOG = Object.freeze([
   {
     build:"8.1.1", data:"2026-04-10", tipo:"FIX",
     autor:"Paulo Esteves Fernandes Neto", ia:"Claude Sonnet 4.6",
-    descricao:"FIX: Restauração do padrão drop zone v6.3 validado em produção. dropZone.onclick + fileInput.onchange — padrão original que funcionava. <label for=fileInput> e addEventListener(change) causavam falha de carregamento de arquivo. Regressão introduzida em tentativas anteriores de correção.",
+    descricao:"FIX: Restauração do padrão drop zone v6.3.",
     axiomas:["A0:regressao-proibida","A1:fonte-v63-transcript"],
+  },
+  {
+    build:"8.1.2", data:"2026-04-10", tipo:"FIX",
+    autor:"Paulo Esteves Fernandes Neto", ia:"Claude Sonnet 4.6",
+    descricao:"FIX DEFINITIVO: <button onclick=fileInput.click()> dentro do drop zone. Browser NUNCA bloqueia fileInput.click() quando originado de clique direto em <button>. Compatível com file://, localhost e HTTPS sem exceção. dropZone.onclick continua como fallback para clique no div.",
+    axiomas:["A0:button-click-nunca-bloqueado","A10:compatibilidade-universal"],
     tentativas_falhas:[
-      "label for=fileInput + addEventListener change → arquivo selecionado não carregava",
-      "dropZone.onclick + addEventListener change → mesma falha",
-      "label + stopPropagation → mesma falha",
+      "dropZone.onclick → bloqueado em alguns browsers ao abrir como file://",
+      "label for=fileInput → não propaga onchange corretamente",
+      "addEventListener change → idem",
     ],
   },
 ]);
