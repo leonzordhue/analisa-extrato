@@ -385,12 +385,12 @@ input[type=month]:focus{border-color:var(--teal)}
     </div>
     <div class="card-body">
       <div class="alert alert-info">ℹ️ <span>Processamento 100% no seu navegador — nenhum dado é enviado para servidores externos.</span></div>
-      <div class="drop-zone" id="dropZone">
+      <label class="drop-zone" id="dropZone" for="fileInput" style="display:block">
         <div class="dz-icon">📂</div>
         <div class="dz-title">Arraste os extratos aqui ou clique para selecionar</div>
         <div class="dz-sub">PDF digital ou escaneado · Bradesco, Itaú, BB, CEF, Santander<br>Múltiplos arquivos e meses simultaneamente</div>
-      </div>
-      <input type="file" id="fileInput" multiple accept=".pdf">
+      </label>
+      <input type="file" id="fileInput" multiple accept=".pdf" style="display:none">
       <div class="file-list" id="fileList"></div>
       <div class="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
@@ -1199,10 +1199,14 @@ function handleFiles(files) {
     </div>`).join("");
   log(`${arquivos.length} arquivo(s) carregado(s).`);
 }
-dropZone.onclick = () => fileInput.click();
-dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add("over"); };
-dropZone.ondragleave = () => dropZone.classList.remove("over");
-dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove("over"); handleFiles(e.dataTransfer.files); };
+// clique no label → fileInput abre nativamente (sem JS)
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("over"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("over");
+  handleFiles(e.dataTransfer.files);
+});
 fileInput.onchange = e => handleFiles(e.target.files);
 
 // ── ANÁLISE ───────────────────────────────────────────────────────────────────
