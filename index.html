@@ -8,8 +8,8 @@
 ║  AKE — AXIOMATIC KERNEL ENGINE · UFT-1.0                                     ║
 ║  @author   Paulo Esteves Fernandes Neto — DMOB/SEINFRA-AM                   ║
 ║  @client   LAADV — Luís Albert Advocacia                                     ║
-║  @version  8.0.0                                                             ║
-║  @build    GENESIS — HTML standalone / GitHub Pages                          ║
+║  @version  8.1.0                                                             ║
+║  @build    REV-1 — keywords 124 termos, filtros anti-FP, descrição literal                          ║
 ╠═══════════════════════════════════════════════════════════════════════════════╣
 ║  ARQUITETURA (AKE Soberano):                                                 ║
 ║  - L1 Library: KEYWORDS_BY_CATEGORY (112 termos, 5 categorias)               ║
@@ -320,7 +320,7 @@ input[type=month]:focus{border-color:var(--teal)}
 <!-- TOPBAR -->
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r"><span class="topbar-dot"></span>Analisador v8.0 · 100% Local · LGPD Safe</span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador v8.1 · 100% Local · LGPD Safe</span>
 </div>
 
 <!-- HEADER -->
@@ -336,7 +336,7 @@ input[type=month]:focus{border-color:var(--teal)}
       </div>
       <div>
         <div class="brand-name">Luís Albert Advocacia</div>
-        <div class="brand-sub">Analisador de Extratos · v8.0 · GitHub Pages</div>
+        <div class="brand-sub">Analisador de Extratos · v8.1 · GitHub Pages</div>
       </div>
     </div>
     <div class="header-right">
@@ -344,7 +344,7 @@ input[type=month]:focus{border-color:var(--teal)}
         <div class="hdr-dot" id="dotStatus"></div>
         <span id="hdrTxt">Pronto</span>
       </div>
-      <div class="header-badge">v8.0</div>
+      <div class="header-badge">v8.1</div>
     </div>
   </div>
 </header>
@@ -480,7 +480,7 @@ input[type=month]:focus{border-color:var(--teal)}
       <div class="footer-nome">Luís Albert Advocacia</div>
     </div>
     <div style="display:flex;align-items:center;gap:.6rem">
-      <span class="footer-badge">v8.0 · GitHub Pages</span>
+      <span class="footer-badge">v8.1 · GitHub Pages</span>
       <div class="footer-copy">PDF.js · SheetJS · Tesseract.js · Manaus – AM</div>
     </div>
   </div>
@@ -495,13 +495,24 @@ input[type=month]:focus{border-color:var(--teal)}
 // ║  @perfil    Soberano — zero dependência de dados externos                   ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
-const AKE_BUILD_LOG = Object.freeze([{
-  build:"8.0.0", data:"2026-04-10", tipo:"GENESIS",
-  autor:"Paulo Esteves Fernandes Neto",
-  ia:"Claude Sonnet 4.6",
-  descricao:"Port completo Python→JS. Parsers por coordenadas (Bradesco) e regex (Itaú/BB/CEF/Santander). Classificador 112 keywords + TF-IDF semântico. GitHub Pages ready.",
-  axiomas:["A1:pdf.js-coords","A2:regex-parsers","A3:keyword-classify","A4:tfidf-fallback","A5:ake-uft10"],
-}]);
+const AKE_BUILD_LOG = Object.freeze([
+  {
+    build:"8.0.0", data:"2026-04-10", tipo:"GENESIS",
+    autor:"Paulo Esteves Fernandes Neto", ia:"Claude Sonnet 4.6",
+    descricao:"Port completo Python→JS. Parsers por coordenadas (Bradesco) e regex (Itaú/BB/CEF/Santander). Classificador 112 keywords + TF-IDF semântico. GitHub Pages ready.",
+    axiomas:["A1:pdf.js-coords","A2:regex-parsers","A3:keyword-classify","A4:tfidf-fallback","A5:ake-uft10"],
+  },
+  {
+    build:"8.1.0", data:"2026-04-10", tipo:"REV",
+    autor:"Paulo Esteves Fernandes Neto", ia:"Claude Sonnet 4.6",
+    descricao:"REV-1: keywords expandidas 112→124 termos com lista validada. isTransfer() reescrita: SAQUE* sem espaço não captura SAQUETERMINAL/SAQUEPESSOAL/SAQUECORRESPONDENTE. Keywords ordenadas longest-first para evitar falso match parcial. Descrição: transcrição literal do campo histórico do extrato — sem concatenação de textos adjacentes. Filtro de prefixo anti-FP adicionado.",
+    axiomas:["A6:longest-first-kw","A7:transfer-safe-regex","A8:desc-literal","A9:anti-fp-prefix"],
+    tentativas_falhas:[
+      "SAQUE com espaço na isTransfer() não bloqueava SAQUETERMINAL → corrigido com regex word-boundary",
+      "Keywords curtas como CESTA batendo em descrições compostas → longest-first resolve",
+    ],
+  },
+]);
 
 // ── L1 — LIBRARY: Classificador de keywords ──────────────────────────────────
 // @source classificador.py v7.4 — portado para JS
@@ -512,61 +523,179 @@ const EXCLUSOES = ["CREFISA","PORTOCRED","DACASA"];
 const KW_STORAGE_KEY = "laadv_keywords_v1";
 
 const KW_DEFAULT = {
-  "IOF": ["IOF","IMP. OP. FINANCEIRAS"],
+  // @axiom A6: keywords ordenadas longest-first dentro de cada categoria
+  // para evitar que termo curto bata antes do termo específico
+  "IOF": [
+    "IMP. OP. FINANCEIRAS",
+    "IOF",
+  ],
   "Parcela Empréstimo": [
-    "PARCELA CREDITO PESSOAL","PARCELA OPER DE CREDITO","PARC CRED PESS",
-    "LIQUID. CONTRATO","CREDITO PESSOAL","BX.ANT.FIN/EMP","BX.ANT.FINANC/EMP",
-    "PAGTO ELETRON COBRANCA (EAGLE)","PAGTO ELETRON COBRANCA (PSERV)",
-    "PAGTO ELETRON COBRANCA (VIDA PRE)","PAGTO ELETRON COBRANCA (ACE SEGURADORA",
-    "PAGTO ELETRON COBRANCA (BRADES RESI)","PAGTO ELETRON COBRANCA (CENTRO DE ASSISTENCIA)",
-    "PAGTO ELETRON COBRANCA (DENTAL SAUDE)","PAGTO ELETRON COBRANCA",
-    "AGIPLAN FINANCEIRA SA CFI","SUDACRED","JBCRED SOCIEDADE",
-    "DIVIDA EM ATRASO","OPERACOES VENCIDAS","REORGANIZACAO FINANCEIRA",
-    "RECEBIMENTO FORNECEDOR","LANCAMENTO A DEBITO","EASYCOB",
-    "GASTO CARTAO CREDITO","GASTOS CARTAO DE CREDITO","CARTAO CREDITO ANUIDADE",
-    "TITULO DE CAPITALIZACAO","CP ELECTRO","CP CRED","EMPRESTIMO PESSOAL","BV FINANCEIRA",
+    // específicos primeiro (mais longos)
+    "PAGTO ELETRON COBRANCA (ACE SEGURADORA S/A)",
+    "PAGTO ELETRON COBRANCA (CENTRO DE ASSISTENCIA)",
+    "PAGTO ELETRON COBRANCA (DENTAL SAUDE)",
+    "PAGTO ELETRON COBRANCA (BRADES RESI)",
+    "PAGTO ELETRON COBRANCA (VIDA PRE)",
+    "PAGTO ELETRON COBRANCA (EAGLE)",
+    "PAGTO ELETRON COBRANCA (PSERV)",
+    "PAGTO ELETRON COBRANCA",
+    "PARCELA CREDITO PESSOAL",
+    "PARCELA OPER DE CREDITO",
+    "PARC CRED PESS",
+    "GASTOS CARTAO DE CREDITO",
+    "GASTO CARTAO CREDITO",
+    "CARTAO CREDITO ANUIDADE",
+    "REORGANIZACAO FINANCEIRA",
+    "AGIPLAN FINANCEIRA SA CFI",
+    "TITULO DE CAPITALIZACAO",
+    "RECEBIMENTO FORNECEDOR",
+    "LANCAMENTO A DEBITO",
+    "BX.ANT.FINANC/EMP",
+    "BX.ANT.FIN/EMP",
+    "OPERACOES VENCIDAS",
+    "DIVIDA EM ATRASO",
+    "SUDACRED SUDA",
+    "JBCRED SOCIEDADE",
+    "CREDITO PESSOAL",
+    "EMPRESTIMO PESSOAL",
+    "BV FINANCEIRA",
+    "LIQUID. CONTRATO",
+    "EASYCOB",
+    "CP ELECTRO",
+    "CP CRED",
   ],
   "Mora/Juros": [
-    "JUROS SALDO DEVEDOR","JUROS LIMITE","MORA CREDITO PESSOAL",
-    "MORA CARTAO DE CREDITO","MORA CONTA DE TELEFONE","MORA DE OPERACAO",
-    "MORA OPERACAO DE CREDITO","MORA VIDA E PREVIDENCIA","MORA ENCARGOS","MORA",
-    "ENCARGO SALDO VINCULADO","ENCARGOS DESCOBERTO CC","ENCARGOS LIMITE DE CREDITO",
-    "ENCARGOS EXCESSO LIMITE","ENCARGOS DEBITO AUTOMATICO","ENCARGOS",
-    "JUROS CHEQUE ESPECIAL","JUROS ROTATIVOS","JUROS MORA",
-    "MORA ENC DESCOBERTO C.C","MORA CRED PESS","CONTA DE TELEFONE",
+    "MORA OPERAÇÃO DE CRÉDITO",
+    "MORA OPERACAO DE CREDITO",
+    "ENCARGOS LIMITE DE CREDITO",
+    "ENCARGOS DESCOBERTO CC",
+    "ENCARGOS EXCESSO LIMITE",
+    "ENCARGOS DEBITO AUTOMATICO",
+    "ENCARGO SALDO VINCULADO",
+    "MORA CARTAO DE CREDITO",
+    "MORA CONTA DE TELEFONE",
+    "MORA VIDA E PREVIDENCIA",
+    "MORA CREDITO PESSOAL",
+    "JUROS SALDO DEVEDOR",
+    "JUROS CHEQUE ESPECIAL",
+    "MORA ENC DESCOBERTO C.C",
+    "MORA DE OPERACAO",
+    "MORA CRED PESS",
+    "MORA ENCARGOS",
+    "JUROS ROTATIVOS",
+    "CONTA DE TELEFONE",
+    "ENCARGOS",
+    "JUROS LIMITE",
+    "JUROS MORA",
+    "MORA",
   ],
   "Tarifa Bancária": [
-    "TARIFA BANCARIA","TARIFA BANCARIA (SAQUEPESSOAL)","TARIFA EMISSAO EXTRATO",
-    "TAR 2 VIA CARTAO DEBITO","TAR ADIANT.DEPOSITANTE","TAR DEMONSTR CONSOLIDADO",
-    "2 VIA CARTAO DEBITO","2VIA DE EXTRATO","ADIANT.DEPOSITANTE",
-    "PEND.TARIFAS BANCARIA","EMISSAO EXTRATO","EMISSÃO EXTRATOS UNIFICADO",
-    "EXTRATO MÊS","EXTRATO UNIFICADO","EXTRATOmovimento(E)","EXTRATOmes(E)",
-    "SEGUNDA VIA","REGULARIZACAO LANCAMENTO","REGULARIZACAO MANUAL",
-    "SERVICO CARTAO PROTEGIDO","DOC/TED INTERNET","ANUIDADE","CENASP",
-    "APLIC.INVEST FACIL","APLICACAO CDB","APLICACAO AUTOMATICA",
-    "APLICACAO INVESTIMENTOS","VR.PARCIAL","VR.PARCIAL CESTA",
-    "CESTA","CESTA CLASSIC","CESTA CLASSIC MAIS","CESTA FACIL",
-    "CESTA FACIL ECONOMICA","CESTA FACIL MASTER","CESTA FACIL MAIS",
-    "CESTA FACIL SUPER","CESTA B.EXPRESSO","CESTA EXCLUSIVE","CESTA PRIME CLASSICA",
-    "CESTA POUPANCA","CESTA BENEFICIARIO","CESTA UNIVERSITARIA","CESTA BRADESCO EXPRE",
-    "PACOTE DE SERVICOS","PACOTE SERVICO PADRAO","PADRONIZADO PRIORITARIOS I",
-    "PADRONIZADO PRIORITARIOS II","TARIFA MSG","TARIFA PACOTE",
-    "TARIFA PACOTE DE SERVICOS","TARIFA MSG - MES ANTERIOR",
-    "TARIFA MENSALIDADE PACOTE SERVICOS","TARIFA MENSALIDADE",
-    "DB T CESTA","SAQUETERMINAL","SAQUETERMI","SAQUECORRESPONDENTE",
-    "SAQUECORRE","SAQUEPESSOAL","SAQUEPESSO","CLUBE DE BENEFICIOS",
+    // cestas — mais específicas primeiro
+    "CESTA APLICACAO INVESTIMENTOS",
+    "CESTA FACIL ECONOMICA",
+    "CESTA BENEFICIARIO 1",
+    "CESTA FACIL MASTER",
+    "CESTA PRIME CLASSICA",
+    "CESTA CLASSIC MAIS",
+    "CESTA FACIL SUPER",
+    "CESTA FACIL MAIS",
+    "CESTA EXPRESSO 4 - R",
+    "CESTA EXCLUS. MAX",
+    "CESTA EXCLUSIVE 1",
+    "CESTA UNIVERSITARIA",
+    "CESTA BRADESCO EXPRE",
+    "CESTA B.EXPRESSO5",
+    "CESTA B.EXPRESSO4",
+    "CESTA B.EXPRESSO3",
+    "CESTA B.EXPRESSO2",
+    "CESTA B.EXPRESSO1",
+    "CESTA POUPANCA 1",
+    "CESTA BENEFIC 1",
+    "CESTA FACIL",
+    "CESTA EXCLUSIVE",
+    "CESTA B.EXPRESSO",
+    "CESTA CELULAR",
+    "CESTA CLASSIC",
+    "CESTA",
+    // tarifas avulsas
+    "EMISSÃO EXTRATOS UNIFICADO",
+    "PADRONIZADO PRIORITARIOS II",
+    "PADRONIZADO PRIORITARIOS I",
+    "TARIFA BANCARIA (SAQUEPESSOAL)",
+    "BX CESTA DE SERVICOS",
+    "REGULARIZACAO LANCAMENTO",
+    "REGULARIZACAO MANUAL",
+    "TARIFA EMISSAO EXTRATO",
+    "SERVICO CARTAO PROTEGIDO",
+    "TAR 2 VIA CARTAO DEBITO",
+    "APLICACAO INVESTIMENTOS",
+    "PEND.TARIFAS BANCARIA",
+    "TAR ADIANT.DEPOSITANTE",
+    "TAR DEMONSTR CONSOLIDADO",
+    "PACOTE SERVICO PADRAO",
+    "PACOTE DE SERVICOS",
+    "EMISSAO EXTRATO",
+    "EXTRATOmovimento(E)",
+    "2 VIA CARTAO DEBITO",
+    "TARIFA BANCARIA",
+    "CLUBE DE BENEFICIOS",
+    "APLICACAO AUTOMATICA",
+    "ADIANT.DEPOSITANTE",
+    "EXTRATOmes(E)",
+    "APLICACAO CDB",
+    "DOC/TED INTERNET",
+    "EXTRATO UNIFICADO",
+    "APLIC.INVEST FACIL",
+    "2VIA DE EXTRATO",
+    "SAQUECORRESPONDENTE",
+    "EXTRATO MÊS",
+    "SAQUETERMINAL",
+    "VR.PARCIAL",
+    "SAQUEPESSOAL",
+    "SEGUNDA VIA",
+    "ANUIDADE",
+    "CENASP",
+    // Itaú / BB / CEF / Santander
+    "TARIFA MENSALIDADE PACOTE SERVICOS",
+    "TARIFA MSG - MES ANTERIOR",
+    "TARIFA PACOTE DE SERVICOS",
+    "TARIFA MENSALIDADE",
+    "TARIFA PACOTE",
+    "TARIFA MSG",
+    "DB T CESTA",
+    "SAQUETERMI",
+    "SAQUECORRE",
+    "SAQUEPESSO",
   ],
   "Seguro": [
-    "SEGURO PRESTAMISTA","SEGURO CART DEB BRADESCO","SEGURO PROTECAO FINANCEIRA",
-    "SEGURO MAIS PROTECAO","SEGURO VIDA","SEGURO CARTAO","SEGURO CARD",
-    "BRADESCO VIDA E PREVIDENCIA","BRADESCO VIDA E PREVIDENCIA S/A",
-    "BRADESCO VIDA PREV-SEG. VIDA","BRADESCO SEG-RESID/OUTROS",
-    "VIDA E PREVIDENCIA","MBM PREVIDENCIA COMPLEMENTAR",
-    "ASPECIR","ASPECIR - UNIAO SEGURADORA","AQUISICAO/DEVOLUCAO-SEG",
-    "BINCLUB SERVICOS DE ADMINISTRACAO","SABEMI SEGURADO",
-    "ODONTOPREV S/A","PREVISUL","VIZA PREV SEGUROS","PREVIPLAN CLUBE",
-    "BRADESCO VIDA","SEBRASEG CLUBE DE BENEFICIOS",
-    "SUDAMERICA CLUBE DE SERVICOS","LIBERTY SEGUROS","PREMIO SEGURO",
+    "BINCLUB SERVICOS DE ADMINISTRACAO",
+    "BRADESCO VIDA E PREVIDENCIA S/A",
+    "BRADESCO VIDA E PREVIDENCIA",
+    "BRADESCO VIDA PREV-SEG. VIDA",
+    "BRADESCO SEG-RESID/OUTROS",
+    "SEBRASEG CLUBE DE BENEFICIOS",
+    "SUDAMERICA CLUBE DE SERVICOS",
+    "ASPECIR - UNIAO SEGURADORA",
+    "AQUISICAO/DEVOLUCAO-SEG",
+    "SEGURO PROTECAO FINANCEIRA",
+    "MBM PREVIDENCIA COMPLEMENTAR",
+    "SABEMI SEGURADO./RS-063*",
+    "SEGURO CART DEB BRADESCO",
+    "VIDA E PREVIDENCIA",
+    "SEGURO MAIS PROTECAO",
+    "SEGURO PRESTAMISTA",
+    "SABEMI SEGURADO",
+    "LIBERTY SEGUROS",
+    "PREVIPLAN CLUBE",
+    "VIZA PREV SEGUROS",
+    "PREMIO SEGURO",
+    "ODONTOPREV S/A",
+    "SEGURO CARTAO",
+    "SEGURO CARD",
+    "SEGURO VIDA",
+    "BRADESCO VIDA",
+    "ASPECIR",
+    "PREVISUL",
   ],
 };
 
@@ -585,9 +714,28 @@ function salvarKwStorage() {
 }
 
 // ── Classificação — Camada 1: keywords exatas ─────────────────────────────────
+// @axiom A8: classificar com anti-FP de prefixo
+// Evita que termos genéricos (CESTA, MORA) batam em descrições que
+// são claramente transações normais com aquela palavra no contexto errado
+const ANTI_FP_PREFIXOS = [
+  // Contextos onde um keyword pode aparecer por acaso e não ser cobrança
+  /^RESG\.\s+CESTA/i,          // Resgate de cesta — não é tarifa cesta
+  /^APLICAC\.\s+CESTA/i,       // Aplicação em cesta de investimento
+  /^CREDITO\s+CESTA/i,         // Crédito de cesta
+  /^PAGTO\s+CESTA/i,           // Pagamento de cesta alimentação (benefício)
+  /^ESTORNO\s/i,               // Estornos nunca são cobranças indevidas
+  /^DEVOLUCAO\s/i,             // Devoluções idem
+  /^RESSARCIMENTO\s/i,         // Ressarcimentos idem
+  /^REEMBOLSO\s/i,             // Reembolsos idem
+];
+
 function classificar(desc) {
   const d = desc.toUpperCase();
+  // Exclusões institucionais (Crefisa etc) — @axiom original
   if (EXCLUSOES.some(ex => d.includes(ex))) return "Outros Descontos";
+  // Anti-FP: prefixos que indicam contexto indevido
+  if (ANTI_FP_PREFIXOS.some(re => re.test(desc))) return "Outros Descontos";
+  // Match de keywords — longest-first garantido pela ordem do KW_DEFAULT
   for (const [cat, kws] of Object.entries(KEYWORDS)) {
     if (kws.some(kw => d.includes(kw.toUpperCase()))) return cat;
   }
@@ -690,15 +838,31 @@ function detectarBanco(texto) {
 }
 
 // ── Filtro de transferências — nunca classificar como indevidas ───────────────
-const TRANSFER_KW = [
-  "PIX TRANSF","PIX ENVIADO","PIX QRS","ENVIO PIX","TED ","DOC ",
-  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","CRED INSS","CRED PIX",
-  "CREDITO SALARIO","SALARIO","RSCSS","RSHOP","COMPRA ","SAQUE ATM",
-  "SAQUE B24H","SAQUE LOT","DEB IRPF","DEPOSITO",
+// @axiom A7: isTransfer reescrita com precisão cirúrgica
+// SAQUE com espaço = transação normal; SAQUETERMINAL/PESSOAL/CORRESPONDENTE = tarifa (nas keywords)
+const TRANSFER_PREFIXOS_RE = [
+  /^PIX /i, /^ENVIO PIX/i, /^TED /i, /^DOC /i,
+  /^TRANSFERENCIA /i, /^TRANSF /i,
+  /^CRED INSS/i, /^CRED PIX/i, /^CRED SALARIO/i,
+  /^CREDITO SALARIO/i, /^CREDITO INSS/i,
+  /^SALARIO /i, /^SALARIO,/i, /^REMUNERACAO /i,
+  /^DEPOSITO /i, /^DEP /i,
+  /^DEB IRPF/i,
+  /^RSCSS /i, /^RSHOP /i,
+  /^SAQUE /i,
+];
+const TRANSFER_CONTAINS = [
+  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","SALDO EM ",
+  "COMPRA CARTAO","COMPRA DEBITO","CRED INSS","DEB IRPF",
 ];
 function isTransfer(desc) {
-  const d = desc.toUpperCase();
-  return TRANSFER_KW.some(kw => d.includes(kw));
+  const d = desc.trim();
+  const du = d.toUpperCase();
+  if (TRANSFER_PREFIXOS_RE.some(re => re.test(d))) return true;
+  if (TRANSFER_CONTAINS.some(kw => du.includes(kw))) return true;
+  return false;
+}
+  return false;
 }
 
 // ── Parser Bradesco — por coordenadas PDF.js ──────────────────────────────────
@@ -736,8 +900,15 @@ function parseBradescoPage(items) {
       const mDeb = textos[i].match(RE_DEB);
       const mSal = textos[i+1]?.match(RE_SALDO);
       if (mDeb && mSal && dataAtual) {
-        // Descrição = tudo antes do valor
-        const desc = textos.slice(0, i).join(" ").replace(/^\d{2}\/\d{2}\/\d{4}\s*/, "").trim();
+        // @axiom A8: descrição = APENAS o campo histórico do extrato
+        // Remove: data do início, números de documento/sequência
+        let desc = textos.slice(0, i).join(" ")
+          .replace(/^\d{2}\/\d{2}\/\d{4}\s*/, "")           // remove data do início
+          .replace(/^\d{5,}\s+[A-Z0-9]{6,}\s*/i, "")          // remove nº doc/seq
+          .replace(/^[A-Z]{2,4}\d{6,}[A-Z0-9]*\s*/i, "")       // remove código bancário
+          .trim();
+        // Limita a 200 chars — descrição real nunca é maior que isso
+        if (desc.length > 200) desc = desc.slice(0, 200).trim();
         if (!desc || isTransfer(desc)) continue;
         const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
         if (val > 0.009 && val < 50000) {
@@ -1307,7 +1478,7 @@ document.getElementById("modalKw").addEventListener("click", function(e) {
   if (e.target === this) fecharModalKw();
 });
 
-console.log("LAADV Analisador v8.0 · AKE UFT-1.0 · GitHub Pages Ready");
+console.log("LAADV Analisador v8.1 · AKE UFT-1.0 · GitHub Pages Ready");
 console.log("AKE_BUILD_LOG:", AKE_BUILD_LOG);
 </script>
 </body>
