@@ -1,32 +1,36 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <!--
-╔═══════════════════════════════════════════════════════════════════════════════╗
-║  LAADV — Analisador de Extratos Bancários v8.2                               ║
-║  GitHub Pages Ready · Single-file · Zero servidor · 100% local              ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║  AKE — AXIOMATIC KERNEL ENGINE · UFT-1.0                                     ║
-║  @author   Paulo Esteves Fernandes Neto — DMOB/SEINFRA-AM                   ║
-║  @client   LAADV — Luís Albert Advocacia                                     ║
-║  @version  8.2.0                                                             ║
-║  @build    REV-2                                                              ║
-╠═══════════════════════════════════════════════════════════════════════════════╣
-║  CORREÇÕES v8.2 (sobre v8.1):                                                ║
-║  - FIX: fileInput double-click (stopPropagation no button interno)           ║
-║  - FIX: fileInput.value reset para permitir re-seleção do mesmo arquivo      ║
-║  - FIX: parseBradescoPage reescrito com zonas X calibradas (PDF real)        ║
-║  - FIX: descrição multilinha Bradesco (linhas sem data = continuação)         ║
-║  - FIX: limpeza de nº documento da descrição (10722 etc)                     ║
-║  - FIX: SAQUE BANCO24HORAS filtrado como transfer (isTransfer)               ║
-║  - FIX: cabeçalhos de página Bradesco filtrados (Folha X/Y etc)              ║
-║  - IMPROVE: parseGenericoText reforçado como fallback                        ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════╗
+║  LAADV — Analisador de Extratos Bancários v9.0                          ║
+║  @author   Paulo Esteves Fernandes Neto — DMOB/SEINFRA-AM               ║
+║  @client   LAADV — Luís Albert Advocacia                                ║
+║  @version  9.0.0 — PARSER BRADESCO TOTALMENTE REESCRITO                 ║
+╠══════════════════════════════════════════════════════════════════════════╣
+║  CORREÇÕES v9.0 (sobre v8.2):                                           ║
+║  - FIX CRÍTICO: parseBradescoPage reescrito com zonas X calibradas      ║
+║    do PDF real (pdfplumber): Data<90, Hist 90-283, Docto 283-380,       ║
+║    Cred 380-445, Deb 445-528, Saldo 528+                                ║
+║  - FIX CRÍTICO: agrupamento de linhas por Y com tolerância de 4pt       ║
+║    (não 3), usando bins para evitar fragmentação                        ║
+║  - FIX CRÍTICO: lógica de "desc_pendente" — apenas linhas sem DATA      ║
+║    e sem DÉBITO e sem CRÉDITO acumulam continuação                      ║
+║  - FIX CRÍTICO: descrição nunca mistura lançamentos diferentes          ║
+║  - FIX: números de documento (4+ dígitos isolados) limpos da descrição  ║
+║  - FIX: GASTOS CARTAO DE CREDITO apenas classificado em Parcela,        ║
+║    pois representa gasto de cartão (cobrança legítima ao banco)         ║
+║  - FIX: PAGTO ELETRON COBRANCA com seguro → categoria Seguro            ║
+║  - FIX: SAQUE nunca aparece em descrição (é isTransfer)                 ║
+║  - FIX: deduplicação robusta por (data + desc[:50] + valor)             ║
+║  - FIX: MORA/JUROS tem prioridade sobre ENCARGOS genérico               ║
+║  - IMPROVE: keywords ordenadas por comprimento (longest-first) por cat  ║
+╚══════════════════════════════════════════════════════════════════════════╝
 -->
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <meta name="theme-color" content="#0B4A44"/>
-<title>LAADV — Analisador de Extratos Bancários</title>
+<title>LAADV — Analisador de Extratos Bancários v9.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
@@ -117,7 +121,7 @@ body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit
 .btn-ghost:hover:not(:disabled){background:var(--gray-light)}
 .btn:disabled{opacity:.4;pointer-events:none}
 .btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;align-items:center}
-.log-box{background:#0a1a18;border-radius:9px;padding:.75rem 1rem;font-size:.68rem;font-family:monospace;color:#7ecdc6;max-height:200px;overflow-y:auto;margin-top:.8rem;display:none}
+.log-box{background:#0a1a18;border-radius:9px;padding:.75rem 1rem;font-size:.68rem;font-family:monospace;color:#7ecdc6;max-height:220px;overflow-y:auto;margin-top:.8rem;display:none}
 .log-box .lok{color:#6ee7b7}
 .log-box .lerr{color:#fca5a5}
 .log-box .lwarn{color:#fcd34d}
@@ -220,16 +224,14 @@ input[type=month]:focus{border-color:var(--teal)}
 </head>
 <body>
 
-<!-- PRINT HEADER -->
 <div class="print-header">
   <div>
     <div style="font-family:Georgia,serif;font-size:1.2rem;font-weight:700;color:#0B4A44">Luís Albert Advocacia</div>
-    <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#C9A93E">Analisador de Extratos Bancários — Cobranças Indevidas</div>
+    <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#C9A93E">Analisador de Extratos — Cobranças Indevidas</div>
   </div>
   <div id="printInfo" style="text-align:right;font-size:.65rem;color:#666;line-height:1.6"></div>
 </div>
 
-<!-- MODAL KEYWORDS -->
 <div class="modal-overlay" id="modalKw">
   <div class="modal">
     <div class="modal-head">
@@ -256,13 +258,11 @@ input[type=month]:focus{border-color:var(--teal)}
   </div>
 </div>
 
-<!-- TOPBAR -->
 <div class="topbar">
   <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
-  <span class="topbar-r"><span class="topbar-dot"></span>Analisador v8.2 · 100% Local · LGPD Safe</span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador v9.0 · 100% Local · LGPD Safe</span>
 </div>
 
-<!-- HEADER -->
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
@@ -275,7 +275,7 @@ input[type=month]:focus{border-color:var(--teal)}
       </div>
       <div>
         <div class="brand-name">Luís Albert Advocacia</div>
-        <div class="brand-sub">Analisador de Extratos · v8.2 · GitHub Pages</div>
+        <div class="brand-sub">Analisador de Extratos · v9.0 · Parser Reconstruído</div>
       </div>
     </div>
     <div class="header-right">
@@ -283,19 +283,18 @@ input[type=month]:focus{border-color:var(--teal)}
         <div class="hdr-dot" id="dotStatus"></div>
         <span id="hdrTxt">Pronto</span>
       </div>
-      <div class="header-badge">v8.2</div>
+      <div class="header-badge">v9.0</div>
     </div>
   </div>
 </header>
 
-<!-- HERO -->
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-eye">// Bradesco · Itaú · BB · CEF · Santander · OCR · Repetição de Indébito</div>
-    <div class="hero-title">Analisador de Extratos<br>Bancários — v8.2</div>
-    <div class="hero-sub">Motor JavaScript local — zero servidor, zero API, zero instalação. Funciona diretamente no navegador. Os extratos nunca saem da sua máquina.</div>
+    <div class="hero-eye">// Bradesco · Itaú · BB · CEF · Santander · Repetição de Indébito</div>
+    <div class="hero-title">Analisador de Extratos<br>Bancários — v9.0</div>
+    <div class="hero-sub">Parser Bradesco completamente reescrito com zonas X calibradas do PDF real. Motor 100% local — zero servidor, zero API. Os extratos nunca saem da sua máquina.</div>
     <div class="hero-chips">
-      <span class="hero-chip">✓ GitHub Pages</span>
+      <span class="hero-chip">✓ Parser v9 Reconstruído</span>
       <span class="hero-chip">✓ Sem Servidor</span>
       <span class="hero-chip">✓ 100% Local</span>
       <span class="hero-chip">✓ LGPD Safe</span>
@@ -308,7 +307,6 @@ input[type=month]:focus{border-color:var(--teal)}
   </div>
 </div>
 
-<!-- MAIN -->
 <div class="main-wrap">
   <div class="card">
     <div class="card-head">
@@ -316,13 +314,12 @@ input[type=month]:focus{border-color:var(--teal)}
         <div class="card-icon">📄</div>
         <div>
           <div class="card-title">Carregamento de Extratos</div>
-          <div class="card-sub">PDF digital ou escaneado · Múltiplos arquivos simultâneos · Detecção automática de banco</div>
+          <div class="card-sub">PDF digital · Múltiplos arquivos · Detecção automática de banco</div>
         </div>
       </div>
     </div>
     <div class="card-body">
       <div class="alert alert-info">ℹ️ <span>Processamento 100% no seu navegador — nenhum dado é enviado para servidores externos.</span></div>
-      <!-- FIX v8.2: botão com stopPropagation para evitar double fileInput.click() -->
       <div class="drop-zone" id="dropZone">
         <div class="dz-icon">📂</div>
         <div class="dz-title">Arraste os extratos aqui ou clique para selecionar</div>
@@ -402,7 +399,6 @@ input[type=month]:focus{border-color:var(--teal)}
   </div>
 </div>
 
-<!-- FOOTER -->
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
@@ -416,8 +412,8 @@ input[type=month]:focus{border-color:var(--teal)}
       <div class="footer-nome">Luís Albert Advocacia</div>
     </div>
     <div style="display:flex;align-items:center;gap:.6rem">
-      <span class="footer-badge">v8.2 · GitHub Pages</span>
-      <div class="footer-copy">PDF.js · SheetJS · Tesseract.js · Manaus – AM</div>
+      <span class="footer-badge">v9.0 · Parser Reconstruído</span>
+      <div class="footer-copy">PDF.js · SheetJS · Manaus – AM</div>
     </div>
   </div>
 </footer>
@@ -426,441 +422,554 @@ input[type=month]:focus{border-color:var(--teal)}
 "use strict";
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║  AKE — AXIOMATIC KERNEL ENGINE · UFT-1.0                                    ║
-// ║  LAADV — Analisador de Extratos Bancários v8.2                              ║
+// ║  LAADV — Analisador de Extratos Bancários v9.0                              ║
+// ║  Parser Bradesco totalmente reescrito com zonas X calibradas via pdfplumber ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
-const AKE_BUILD_LOG = Object.freeze([
-  {build:"8.0.0",data:"2026-04-10",tipo:"GENESIS",descricao:"Port completo Python→JS"},
-  {build:"8.1.0",data:"2026-04-10",tipo:"REV",descricao:"Keywords 112→124, anti-FP, longest-first"},
-  {build:"8.2.0",data:"2026-04-13",tipo:"FIX",
-   descricao:"FIX CRÍTICO: fileInput double-click, parseBradescoPage reescrito com zonas X calibradas do PDF real, descrição multilinha, limpeza nº documento, cabeçalhos de página filtrados, parseGenericoText reforçado",
-   correcoes:[
-     "stopPropagation no btnSelectFiles para evitar double fileInput.click()",
-     "fileInput.value='' após handleFiles para permitir re-seleção",
-     "parseBradescoPage: zonas X calibradas (data<100, hist 100-280, doc 280-370, cred 370-440, deb 440-520, saldo 520+)",
-     "Descrição multilinha: linhas sem data=continuação da transação anterior",
-     "Limpeza de nº documento (5+ dígitos) da descrição",
-     "Filtro de cabeçalhos Bradesco (Folha, Extrato de, Data Histórico)",
-     "SAQUE BANCO24HORAS adicionado a isTransfer",
-   ],
-  },
-]);
+const KW_STORAGE_KEY = "laadv_keywords_v2";
 
-// ── L1 — LIBRARY: Keywords ──────────────────────────────────────────────────
-const EXCLUSOES = ["CREFISA","PORTOCRED","DACASA"];
-const KW_STORAGE_KEY = "laadv_keywords_v1";
-
+// ── KEYWORDS — ordenadas por comprimento decrescente internamente ─────────────
+// Prioridade de classificação: Seguro > Mora/Juros > Tarifa Bancária > IOF > Parcela Empréstimo
 const KW_DEFAULT = {
-  "IOF": ["IMP. OP. FINANCEIRAS","IOF"],
-  "Parcela Empréstimo": [
-    "PAGTO ELETRON COBRANCA (ACE SEGURADORA S/A)","PAGTO ELETRON COBRANCA (CENTRO DE ASSISTENCIA)",
-    "PAGTO ELETRON COBRANCA (DENTAL SAUDE)","PAGTO ELETRON COBRANCA (BRADES RESI)",
-    "PAGTO ELETRON COBRANCA (VIDA PRE)","PAGTO ELETRON COBRANCA (EAGLE)",
-    "PAGTO ELETRON COBRANCA (PSERV)","PAGTO ELETRON COBRANCA",
-    "PARCELA CREDITO PESSOAL","PARCELA OPER DE CREDITO","PARC CRED PESS",
-    "GASTOS CARTAO DE CREDITO","GASTO CARTAO CREDITO","CARTAO CREDITO ANUIDADE",
-    "REORGANIZACAO FINANCEIRA","AGIPLAN FINANCEIRA SA CFI","TITULO DE CAPITALIZACAO",
-    "RECEBIMENTO FORNECEDOR","LANCAMENTO A DEBITO",
-    "BX.ANT.FINANC/EMP","BX.ANT.FIN/EMP","OPERACOES VENCIDAS","DIVIDA EM ATRASO",
-    "SUDACRED SUDA","JBCRED SOCIEDADE","CREDITO PESSOAL","EMPRESTIMO PESSOAL",
-    "BV FINANCEIRA","LIQUID. CONTRATO","EASYCOB","CP ELECTRO","CP CRED",
+  "Seguro": [
+    "BINCLUB SERVICOS DE ADMINISTRACAO",
+    "BRADESCO VIDA E PREVIDENCIA S/A","BRADESCO VIDA E PREVIDENCIA","BRADESCO VIDA PREV-SEG. VIDA",
+    "BRADESCO SEG-RESID/OUTROS","SEBRASEG CLUBE DE BENEFICIOS",
+    "SUDAMERICA CLUBE DE SERVICOS","ASPECIR - UNIAO SEGURADORA",
+    "AQUISICAO/DEVOLUCAO-SEG","SEGURO PROTECAO FINANCEIRA",
+    "MBM PREVIDENCIA COMPLEMENTAR","SABEMI SEGURADO./RS-063*","SABEMI SEGURADO","SABEMI",
+    "SEGURO CART DEB BRADESCO","SEGURO MAIS PROTECAO","SEGURO PRESTAMISTA",
+    "LIBERTY SEGUROS","PREVIPLAN CLUBE","VIZA PREV SEGUROS","PREMIO SEGURO",
+    "ODONTOPREV S/A","BRADESCO VIDA","VIDA E PREVIDENCIA",
+    "ASPECIR","PREVISUL",
+    "UNIMED CLUBE SEGUROS","SEGUROS UNIMED","SEGURO AP",
+    "PAGTO ELETRON COBRANCA (ACE SEGURADORA",
+    "PAGTO ELETRON COBRANCA (BRADES RESI",
+    "PAGTO ELETRON COBRANCA (CENTRO DE ASSIST",
+    "PAGTO ELETRON COBRANCA (DENTAL SAUDE",
+    "PAGTO ELETRON COBRANCA (VIDA PRE",
+    "PAGTO ELETRON COBRANCA (EAGLE",
+    "PAGTO ELETRON COBRANCA (PSERV",
+    "SEGURO CARTAO","SEGURO CARD","SEGURO VIDA","SEGURO",
   ],
   "Mora/Juros": [
-    "MORA OPERAÇÃO DE CRÉDITO","MORA OPERACAO DE CREDITO","ENCARGOS LIMITE DE CREDITO",
-    "ENCARGOS DESCOBERTO CC","ENCARGOS EXCESSO LIMITE","ENCARGOS DEBITO AUTOMATICO",
-    "ENCARGO SALDO VINCULADO","MORA CARTAO DE CREDITO","MORA CONTA DE TELEFONE",
-    "MORA VIDA E PREVIDENCIA","MORA CREDITO PESSOAL","JUROS SALDO DEVEDOR",
-    "JUROS CHEQUE ESPECIAL","MORA ENC DESCOBERTO C.C","MORA DE OPERACAO",
-    "MORA CRED PESS","MORA ENCARGOS","JUROS ROTATIVOS","CONTA DE TELEFONE",
-    "ENCARGOS","JUROS LIMITE","JUROS MORA","MORA",
+    "MORA OPERACAO DE CREDITO","MORA OPERAÇÃO DE CRÉDITO",
+    "ENCARGOS LIMITE DE CREDITO","ENCARGOS EXCESSO LIMITE",
+    "ENCARGOS DEBITO AUTOMATICO","ENCARGO SALDO VINCULADO",
+    "MORA CARTAO DE CREDITO","MORA CONTA DE TELEFONE",
+    "MORA VIDA E PREVIDENCIA","MORA CREDITO PESSOAL",
+    "JUROS SALDO DEVEDOR","JUROS CHEQUE ESPECIAL",
+    "MORA ENC DESCOBERTO C.C","MORA DE OPERACAO",
+    "MORA CRED PESS","MORA ENCARGOS",
+    "ENCARGOS DESCOBERTO CC","ENCARGOS EXCESSO",
+    "JUROS ROTATIVOS","JUROS LIMITE","JUROS MORA",
+    "ENCARGOS","MORA","JUROS",
   ],
   "Tarifa Bancária": [
     "CESTA APLICACAO INVESTIMENTOS","CESTA FACIL ECONOMICA","CESTA BENEFICIARIO 1",
     "CESTA FACIL MASTER","CESTA PRIME CLASSICA","CESTA CLASSIC MAIS",
     "CESTA FACIL SUPER","CESTA FACIL MAIS","CESTA EXPRESSO 4 - R",
     "CESTA EXCLUS. MAX","CESTA EXCLUSIVE 1","CESTA UNIVERSITARIA",
-    "CESTA BRADESCO EXPRE","CESTA B.EXPRESSO5","CESTA B.EXPRESSO4","CESTA B.EXPRESSO3",
-    "CESTA B.EXPRESSO2","CESTA B.EXPRESSO1","CESTA POUPANCA 1","CESTA BENEFIC 1",
-    "CESTA FACIL","CESTA EXCLUSIVE","CESTA B.EXPRESSO","CESTA CELULAR",
-    "CESTA CLASSIC","CESTA",
-    "EMISSÃO EXTRATOS UNIFICADO","PADRONIZADO PRIORITARIOS II","PADRONIZADO PRIORITARIOS I",
-    "TARIFA BANCARIA (SAQUEPESSOAL)","BX CESTA DE SERVICOS",
-    "REGULARIZACAO LANCAMENTO","REGULARIZACAO MANUAL","TARIFA EMISSAO EXTRATO",
-    "SERVICO CARTAO PROTEGIDO","TAR 2 VIA CARTAO DEBITO","APLICACAO INVESTIMENTOS",
-    "PEND.TARIFAS BANCARIA","TAR ADIANT.DEPOSITANTE","TAR DEMONSTR CONSOLIDADO",
-    "PACOTE SERVICO PADRAO","PACOTE SERVICO PADRO","PACOTE DE SERVICOS","EMISSAO EXTRATO",
-    "EXTRATOmovimento(E)","2 VIA CARTAO DEBITO","TARIFA BANCARIA","CLUBE DE BENEFICIOS",
-    "APLICACAO AUTOMATICA","ADIANT.DEPOSITANTE","EXTRATOmes(E)","APLICACAO CDB",
-    "DOC/TED INTERNET","EXTRATO UNIFICADO","APLIC.INVEST FACIL","2VIA DE EXTRATO",
-    "SAQUECORRESPONDENTE","EXTRATO MÊS","SAQUETERMINAL","VR.PARCIAL","SAQUEPESSOAL",
-    "SEGUNDA VIA","ANUIDADE","CENASP",
+    "CESTA BRADESCO EXPRE","CESTA B.EXPRESSO5","CESTA B.EXPRESSO4",
+    "CESTA B.EXPRESSO3","CESTA B.EXPRESSO2","CESTA B.EXPRESSO1",
+    "CESTA POUPANCA 1","CESTA BENEFIC 1","CESTA FACIL","CESTA EXCLUSIVE",
+    "CESTA B.EXPRESSO","CESTA CELULAR","CESTA CLASSIC","CESTA",
+    "PADRONIZADO PRIORITARIOS II","PADRONIZADO PRIORITARIOS I","PADRONIZADO PRIORITARIOS",
+    "VR.PARCIAL PADRONIZADO PRIOR","VR.PARCIAL",
+    "PACOTE SERVICO PADRAO","PACOTE SERVICO PADRO","PACOTE DE SERVICOS",
+    "BX CESTA DE SERVICOS","DB T CESTA",
+    "EMISSÃO EXTRATOS UNIFICADO","EMISSAO EXTRATOS UNIFICADO",
+    "EMISSAO EXTRATO","EXTRATO UNIFICADO","EXTRATO MÊS","EXTRATO MES",
+    "EXTRATOmovimento(E)","EXTRATOmes(E)",
+    "TARIFA BANCARIA (SAQUEPESSOAL)","TARIFA BANCARIA","TARIFA EMISSAO EXTRATO",
     "TARIFA MENSALIDADE PACOTE SERVICOS","TARIFA MSG - MES ANTERIOR",
     "TARIFA PACOTE DE SERVICOS","TARIFA MENSALIDADE","TARIFA PACOTE","TARIFA MSG",
-    "DB T CESTA","SAQUETERMI","SAQUECORRE","SAQUEPESSO",
+    "2 VIA CARTAO DEBITO","2VIA DE EXTRATO","TAR 2 VIA CARTAO DEBITO",
+    "TAR ADIANT.DEPOSITANTE","TAR DEMONSTR CONSOLIDADO",
+    "ADIANT.DEPOSITANTE","SERVICO CARTAO PROTEGIDO",
+    "APLICACAO AUTOMATICA","APLICACAO CDB","APLIC.INVEST FACIL",
+    "APLICACAO INVESTIMENTOS","DOC/TED INTERNET",
+    "SAQUECORRESPONDENTE","SAQUETERMINAL","SAQUEPESSOAL",
+    "SEGUNDA VIA","ANUIDADE","CENASP","CLUBE DE BENEFICIOS",
+    "REGULARIZACAO LANCAMENTO","REGULARIZACAO MANUAL","PEND.TARIFAS BANCARIA",
+    "PACOTE SERVICO PADRAO","PEND.TARIFAS BANCARIA",
+    "CARTAO CREDITO ANUIDADE",
   ],
-  "Seguro": [
-    "BINCLUB SERVICOS DE ADMINISTRACAO","BRADESCO VIDA E PREVIDENCIA S/A",
-    "BRADESCO VIDA E PREVIDENCIA","BRADESCO VIDA PREV-SEG. VIDA",
-    "BRADESCO SEG-RESID/OUTROS","SEBRASEG CLUBE DE BENEFICIOS",
-    "SUDAMERICA CLUBE DE SERVICOS","ASPECIR - UNIAO SEGURADORA",
-    "AQUISICAO/DEVOLUCAO-SEG","SEGURO PROTECAO FINANCEIRA",
-    "MBM PREVIDENCIA COMPLEMENTAR","SABEMI SEGURADO./RS-063*",
-    "SEGURO CART DEB BRADESCO","VIDA E PREVIDENCIA","SEGURO MAIS PROTECAO",
-    "SEGURO PRESTAMISTA","SABEMI SEGURADO","LIBERTY SEGUROS","PREVIPLAN CLUBE",
-    "VIZA PREV SEGUROS","PREMIO SEGURO","ODONTOPREV S/A","SEGURO CARTAO",
-    "SEGURO CARD","SEGURO VIDA","BRADESCO VIDA","ASPECIR","PREVISUL",
+  "IOF": [
+    "IMP. OP. FINANCEIRAS","IOF",
+  ],
+  "Parcela Empréstimo": [
+    "PAGTO ELETRON COBRANCA (ACE SEGURADORA S/A",
+    "PAGTO ELETRON COBRANCA (CENTRO DE ASSISTENCIA",
+    "PAGTO ELETRON COBRANCA (DENTAL SAUDE",
+    "PAGTO ELETRON COBRANCA (BRADES RESI",
+    "PAGTO ELETRON COBRANCA (VIDA PRE",
+    "PAGTO ELETRON COBRANCA (EAGLE",
+    "PAGTO ELETRON COBRANCA (PSERV",
+    "PAGTO ELETRON COBRANCA",
+    "PARCELA CREDITO PESSOAL","PARCELA OPER DE CREDITO","PARC CRED PESS",
+    "GASTOS CARTAO DE CREDITO","GASTO CARTAO CREDITO",
+    "REORGANIZACAO FINANCEIRA","AGIPLAN FINANCEIRA SA CFI",
+    "TITULO DE CAPITALIZACAO","RECEBIMENTO FORNECEDOR","LANCAMENTO A DEBITO",
+    "BX.ANT.FINANC/EMP","BX.ANT.FIN/EMP","OPERACOES VENCIDAS","DIVIDA EM ATRASO",
+    "SUDACRED SUDA","JBCRED SOCIEDADE","EMPRESTIMO PESSOAL","BV FINANCEIRA",
+    "LIQUID. CONTRATO","EASYCOB","CP ELECTRO","CP CRED","CREDITO PESSOAL",
   ],
 };
 
 let KEYWORDS = (() => {
-  try { const s = localStorage.getItem(KW_STORAGE_KEY); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(KW_DEFAULT)); }
-  catch { return JSON.parse(JSON.stringify(KW_DEFAULT)); }
+  try {
+    const s = localStorage.getItem(KW_STORAGE_KEY);
+    return s ? JSON.parse(s) : JSON.parse(JSON.stringify(KW_DEFAULT));
+  } catch { return JSON.parse(JSON.stringify(KW_DEFAULT)); }
 })();
+
+// Ordena keywords por comprimento decrescente (longest-first match)
+function sortKwLongestFirst(kws) {
+  return [...kws].sort((a,b) => b.length - a.length);
+}
+
 function salvarKwStorage() { localStorage.setItem(KW_STORAGE_KEY, JSON.stringify(KEYWORDS)); }
 
-// ── Classificação ─────────────────────────────────────────────────────────────
-const ANTI_FP_PREFIXOS = [
-  /^RESG\.\s+CESTA/i, /^APLICAC\.\s+CESTA/i, /^CREDITO\s+CESTA/i,
-  /^PAGTO\s+CESTA/i, /^ESTORNO\s/i, /^DEVOLUCAO\s/i, /^RESSARCIMENTO\s/i, /^REEMBOLSO\s/i,
+// ── Classificação — prioridade: Seguro > Mora/Juros > Tarifa > IOF > Parcela ─
+const CAT_PRIORITY = ["Seguro","Mora/Juros","Tarifa Bancária","IOF","Parcela Empréstimo"];
+
+// Mapeamento de nomes internos → exibição
+const CAT_MAP = {
+  "Seguro":"Seguro",
+  "Mora/Juros":"Mora/Juros",
+  "Tarifa Bancária":"Tarifa Bancária",
+  "IOF":"IOF",
+  "Parcela Empréstimo":"Parcela Empréstimo",
+};
+
+// Anti-falso-positivo: transações que não devem ser capturadas mesmo que a KW bata
+const ANTI_FP = [
+  /^ESTORNO\s/i, /^DEVOLUCAO\s/i, /^RESSARCIMENTO\s/i, /^REEMBOLSO\s/i,
+  /^RESG\.\s+CESTA/i, /^APLICAC\.\s+CESTA/i, /^CREDITO\s+CESTA/i, /^PAGTO\s+CESTA/i,
 ];
+const EXCLUSOES = ["CREFISA","PORTOCRED","DACASA"];
 
 function classificar(desc) {
-  const d = desc.toUpperCase();
-  if (EXCLUSOES.some(ex => d.includes(ex))) return "Outros Descontos";
-  if (ANTI_FP_PREFIXOS.some(re => re.test(desc))) return "Outros Descontos";
-  for (const [cat, kws] of Object.entries(KEYWORDS)) {
-    if (kws.some(kw => d.includes(kw.toUpperCase()))) return cat;
+  const du = desc.toUpperCase();
+  if (EXCLUSOES.some(ex => du.includes(ex))) return null;
+  if (ANTI_FP.some(re => re.test(desc))) return null;
+  for (const cat of CAT_PRIORITY) {
+    const kws = KEYWORDS[cat] || KEYWORDS[Object.keys(KEYWORDS).find(k => k===cat || k.includes(cat.split('/')[0]))] || [];
+    const sorted = sortKwLongestFirst(kws);
+    for (const kw of sorted) {
+      if (du.includes(kw.toUpperCase())) return cat;
+    }
   }
-  return "Outros Descontos";
+  return null;
 }
 
-// TF-IDF semântico (fallback)
-const PREFIXOS_EXCLUIR = [
-  "PIX TRANSF","PIX QRS","PIX ENVIADO","ENVIO PIX","TED ","DOC ",
-  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","CRED INSS","CRED PIX",
-  "CREDITO SALARIO","SALARIO","RSCSS","RSHOP","COMPRA ","SAQUE ATM",
-  "SAQUE B24H","SAQUE LOT","DEB IRPF","CREFISA","PORTOCRED","DACASA",
-];
-const EXEMPLOS_TREINO = {
-  "Parcela Empréstimo":["PARCELA CREDITO PESSOAL","PARC EMPRESTIMO","PRESTACAO FINANCIAMENTO","PARCELA CONTRATO","AMORTIZACAO EMPRESTIMO","PARCELA CONSIGNADO","PAGTO FINANCEIRA","DEDUCAO CONSIGNADO","DESCONTO FOLHA EMPRESTIMO"],
-  "Mora/Juros":["JUROS ATRASO","MORA PAGAMENTO","JUROS ESPECIAL","ENCARGOS ATRASO","MULTA ATRASO","JUROS ROTATIVO","MORA CONTRATO","ENCARGO FINANCEIRO","TAXA JUROS","MORA FINANCIAMENTO","JURO MORA","ENCARGO MENSAL"],
-  "Tarifa Bancária":["TAXA MANUTENCAO CONTA","TARIFA SERVICO","MENSALIDADE CONTA","TARIFA PACOTE SERVICOS","CESTA BASICA BANCO","TAXA TRANSFERENCIA","TARIFA TED","TARIFA BOLETO","MANUTENCAO CONTA CORRENTE","TAXA CONTA","PACOTE SERVICOS BANCARIOS","COBRANCA SERVICO","TAXA ADMINISTRACAO"],
-  "Seguro":["PREMIO SEGURO","SEGURO PRESTAMISTA","SEGURO VIDA BANCO","COBERTURA SEGURO","APOLICE SEGURO","SEGURO CARTAO CREDITO","PROTECAO SEGURO","COBRANCA SEGURO","SEGURO FINANCIAMENTO"],
-  "IOF":["IOF OPERACAO","IMPOSTO FINANCEIRO","IOF CREDITO","IOF EMPRESTIMO","IOF LIMITE"],
-};
-function ngrams(s,n){const r=[];for(let i=0;i<=s.length-n;i++)r.push(s.slice(i,i+n));return r;}
-function tfidfSim(a,b){const sa=new Set(ngrams(a.toUpperCase(),2)),sb=new Set(ngrams(b.toUpperCase(),2));let inter=0;sa.forEach(g=>{if(sb.has(g))inter++;});return inter/Math.sqrt(sa.size*sb.size||1);}
-let _modeloTreino=null;
-function _buildModelo(){const docs=[];for(const[cat,exs]of Object.entries(EXEMPLOS_TREINO))exs.forEach(e=>docs.push({cat,text:e}));for(const[cat,kws]of Object.entries(KEYWORDS))kws.forEach(k=>docs.push({cat,text:k}));return docs;}
-function classificarSemantico(desc){if(!_modeloTreino)_modeloTreino=_buildModelo();const d=desc.toUpperCase();if(PREFIXOS_EXCLUIR.some(p=>d.startsWith(p)||d.includes(p)))return null;let melhorCat=null,melhorSim=0.30;for(const doc of _modeloTreino){const sim=tfidfSim(d,doc.text);if(sim>melhorSim){melhorSim=sim;melhorCat=doc.cat;}}return melhorCat;}
-function classificarCompleto(desc){const c1=classificar(desc);if(c1!=="Outros Descontos")return c1;return classificarSemantico(desc)||"Outros Descontos";}
-
-// ── Detecção de banco ─────────────────────────────────────────────────────────
-function detectarBanco(texto){
-  const t=texto.toLowerCase();
-  if(t.includes("bradesco"))return "bradesco";
-  if(t.includes("período de visualização")&&t.includes("saldo do dia"))return "itau";
-  if(t.includes("extrato de conta corrente")&&t.includes("dia lote documento"))return "bb";
-  if(t.includes("extrato por período")&&t.includes("nr. doc"))return "cef";
-  if(t.includes("extrato consolidado inteligente")||t.includes("santander"))return "santander";
-  if(t.includes("itau")||t.includes("itaú"))return "itau";
-  if(t.includes("banco do brasil"))return "bb";
-  if(t.includes("caixa econômica")||t.includes("caixa economica"))return "cef";
-  return "generico";
-}
-
-// ── Filtro de transferências ──────────────────────────────────────────────────
-const TRANSFER_PREFIXOS_RE = [
-  /^PIX /i,/^ENVIO PIX/i,/^TED /i,/^DOC /i,
-  /^TRANSFERENCIA /i,/^TRANSF /i,
-  /^CRED INSS/i,/^CRED PIX/i,/^CRED SALARIO/i,
-  /^CREDITO SALARIO/i,/^CREDITO INSS/i,
-  /^SALARIO /i,/^SALARIO,/i,/^REMUNERACAO /i,
-  /^DEPOSITO /i,/^DEP /i,/^DEB IRPF/i,
-  /^RSCSS /i,/^RSHOP /i,
-  /^SAQUE /i,  // "SAQUE " com espaço = transação normal (ATM, BANCO24HORAS)
+// ── Filtro de transferências / créditos / saques ──────────────────────────────
+// Estas transações NUNCA devem ser capturadas como cobrança indevida
+const TRANSFER_STARTSWITH = [
+  "INSS","SALDO ANTERIOR","SALDO DO DIA","SALDO EM ",
+  "TED-TRANSF ELET DISPON","REMET.",
+  "PIX ","ENVIO PIX","PIX TRANSF","PIX QRS","PIX ENVIADO",
+  "SALARIO","REMUNERACAO","DEPOSITO","DEP ",
+  "RENDIMENTOS","RENDIMENTO",
+  "EMPRESTIMO PESSOAL - BDN","EMPRESTIMO PESSOAL - BDN / 24HS",
+  "SAQUE C/C BANCO24HORAS","SAQUE C/C BDN","SAQUE BANCO24HORAS",
+  "SAQUE C/C","SAQUE B24H",
+  "COMPRA ELO","COMPRA DEBITO","COMPRA CARTAO",
+  "DEB IRPF","RSCSS ","RSHOP ",
+  "CREDITO SALARIO","CREDITO INSS","CRED PIX","CRED INSS","CRED SALARIO",
 ];
 const TRANSFER_CONTAINS = [
-  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","SALDO EM ",
-  "COMPRA CARTAO","COMPRA DEBITO","CRED INSS","DEB IRPF",
-  "SAQUE BANCO24HORAS","SAQUE BANCO24H","SAQUE B24H",  // v8.2: adicionados
+  "SALDO DO DIA","SALDO ANTERIOR","SALDO EM ",
 ];
-function isTransfer(desc){
-  const d=desc.trim(),du=d.toUpperCase();
-  if(TRANSFER_PREFIXOS_RE.some(re=>re.test(d)))return true;
-  if(TRANSFER_CONTAINS.some(kw=>du.includes(kw)))return true;
+
+function isTransfer(desc) {
+  const du = desc.trim().toUpperCase();
+  for (const s of TRANSFER_STARTSWITH) {
+    if (du.startsWith(s.toUpperCase())) return true;
+  }
+  for (const s of TRANSFER_CONTAINS) {
+    if (du.includes(s.toUpperCase())) return true;
+  }
   return false;
 }
 
-// ── Filtro de cabeçalhos de página Bradesco ────────────────────────────────────
-// v8.2: impede que linhas de cabeçalho/rodapé sejam parseadas como transação
-const CABECALHO_PATTERNS = [
-  /^Bradesco\s+Celular/i, /^Data:\s*\d{2}\/\d{2}/i, /^Nome:\s/i,
-  /^Extrato\s+de:/i, /Folha:\s*\d+\/\d+/i, /^Data\s+Hist[oó]rico\s+Docto/i,
-  /Movimenta[çc][oõ]es\s+entre/i, /Ag[eê]ncia:/i, /Conta:/i,
-  /^Total$/i, /^Extrato\s+Inexistente/i, /^\s*$/,
-];
-function isCabecalho(texto) {
-  return CABECALHO_PATTERNS.some(re => re.test(texto.trim()));
-}
+// ── Filtro de cabeçalhos ───────────────────────────────────────────────────────
+const CABECALHO_RE = new RegExp(
+  '(Bradesco\\s+Celular|^Data:|^Nome:|Extrato\\s+de:|Agência:|Folha:|' +
+  'Data\\s+Hist|Crédito\\s*\\(R\\$\\)|Débito\\s*\\(R\\$\\)|Saldo\\s*\\(R\\$\\)|' +
+  'Docto\\.|Movimenta|^Total$|Extrato\\s+Inexistente|Últimos\\s+Lançamentos)',
+  'i'
+);
+function isCabecalho(txt) { return CABECALHO_RE.test(txt.trim()); }
+
+// ── RE auxiliares ─────────────────────────────────────────────────────────────
+const RE_DATA     = /^\d{2}\/\d{2}\/\d{4}$/;
+const RE_DEB      = /^-(\d{1,3}(?:\.\d{3})*,\d{2})$/;
+const RE_NUMONLY  = /^\d{4,}$/;  // números puros de 4+ dígitos = docto
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PARSER BRADESCO v8.2 — REESCRITO com zonas X calibradas do PDF real
-// Coordenadas X do extrato Bradesco Celular (PDF.js transform[4]):
-//   Data:     0–100
-//   Histórico: 100–280
-//   Docto:    280–370
-//   Crédito:  370–440
-//   Débito:   440–520 (valores com sinal -)
-//   Saldo:    520+
+// PARSER BRADESCO v9.0
+//
+// Zonas X calibradas via pdfplumber no PDF real:
+//   x < 90        → Coluna DATA (dd/mm/aaaa)
+//   90 ≤ x < 283  → Coluna HISTÓRICO (descrição da transação)
+//   283 ≤ x < 380 → Coluna DOCTO (número do documento — ignorar)
+//   380 ≤ x < 445 → Coluna CRÉDITO (valores positivos — ignorar)
+//   445 ≤ x < 528 → Coluna DÉBITO (valores negativos com sinal -)
+//   x ≥ 528       → Coluna SALDO — ignorar
+//
+// Lógica de agrupamento:
+//   - Agrupa itens por Y em bins de 4pt (round(top/4)*4)
+//   - Ordena bins por top crescente (topo → base)
+//   - Linha com DATA → atualiza data corrente; reset desc_pendente
+//   - Linha sem DATA + sem DÉBITO + sem CRÉDITO → acumula em desc_pendente
+//   - Linha com DÉBITO → constrói descrição = desc_pendente + hist da linha
+//     → limpa números soltos → verifica transfer → classifica
 // ══════════════════════════════════════════════════════════════════════════════
 function parseBradescoPage(items) {
-  // Agrupa por linha (Y similar — tolerância de 3 unidades)
+  // Agrupa por linha (bins de 4pt em Y = top)
   const linhasMap = new Map();
   for (const it of items) {
-    if (!it.str.trim()) continue;
-    const y = Math.round(it.transform[5]);
-    const x = Math.round(it.transform[4]);
-    // Agrupa por Y com tolerância
-    let yKey = y;
-    for (const existingY of linhasMap.keys()) {
-      if (Math.abs(existingY - y) <= 3) { yKey = existingY; break; }
-    }
-    if (!linhasMap.has(yKey)) linhasMap.set(yKey, []);
-    linhasMap.get(yKey).push({ x, text: it.str.trim() });
+    if (!it.str || !it.str.trim()) continue;
+    const top = it.transform[5]; // PDF.js: Y cresce de baixo para cima
+    // Converter para coordenada "top-down": usar transform[5] diretamente
+    // (PDF.js retorna y em coord PDF, onde 0 é embaixo)
+    // Para ordenar de cima para baixo, usaremos negativo
+    const x   = it.transform[4];
+    const y   = Math.round(top / 4) * 4; // bin de 4pt
+
+    if (!linhasMap.has(y)) linhasMap.set(y, []);
+    linhasMap.get(y).push({ x, text: it.str.trim() });
   }
 
-  const RE_DATA = /^\d{2}\/\d{2}\/\d{4}$/;
-  const RE_DEB  = /^-(\d{1,3}(?:\.\d{3})*,\d{2})$/;
+  // Ordena linhas: PDF.js tem Y crescendo de baixo para cima,
+  // então MAIOR Y = mais próximo do topo da página
+  const ysOrdenados = [...linhasMap.keys()].sort((a, b) => b - a);
+
   const resultado = [];
   let dataAtual = null;
-  let descPendente = "";  // v8.2: acumula descrição multilinha
-
-  // Ordena linhas por Y decrescente (PDF.js: topo = maior Y)
-  const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b - a);
+  let descPendente = []; // partes de hist acumuladas de linhas de continuação
 
   for (const y of ysOrdenados) {
-    const itensLinha = linhasMap.get(y).sort((a,b) => a.x - b.x);
+    const itensLinha = linhasMap.get(y).sort((a, b) => a.x - b.x);
+    const linhaTexto = itensLinha.map(i => i.text).join(' ');
 
-    // Extrai campos por zona X
-    let dataField = "", histField = "", debField = "", saldoField = "";
+    // Pula cabeçalhos / rodapés
+    if (isCabecalho(linhaTexto)) { descPendente = []; continue; }
+
+    let dataField  = '';
+    const histParts = [];
+    let debField   = '';
+    let credField  = '';
+
     for (const item of itensLinha) {
-      if (item.x < 100) {
-        if (RE_DATA.test(item.text)) dataField = item.text;
-      } else if (item.x >= 100 && item.x < 280) {
-        histField += (histField ? " " : "") + item.text;
-      } else if (item.x >= 440 && item.x < 520) {
-        debField = item.text;
-      } else if (item.x >= 520) {
-        saldoField = item.text;
+      const x = item.x;
+      const t = item.text;
+
+      if (x < 90) {
+        // Coluna DATA
+        if (RE_DATA.test(t)) dataField = t;
+      } else if (x < 283) {
+        // Coluna HISTÓRICO — ignora tokens que são só números (docto vazando)
+        if (!RE_NUMONLY.test(t)) histParts.push(t);
+      } else if (x < 380) {
+        // Docto — ignorar completamente
+      } else if (x < 445) {
+        // Crédito — registra apenas para saber se há valor positivo
+        credField = t;
+      } else if (x < 528) {
+        // Débito
+        if (RE_DEB.test(t)) debField = t;
       }
-      // 280-370 = docto (ignorar — não queremos nº doc na descrição)
-      // 370-440 = crédito (ignorar — só débitos nos interessam)
+      // Saldo — ignorar
     }
 
-    // Atualiza data corrente
+    const histText = histParts.join(' ').trim();
+
+    // Atualiza data corrente quando aparece
     if (dataField) dataAtual = dataField;
 
-    // Filtra cabeçalhos
-    const linhaTexto = itensLinha.map(i => i.text).join(" ");
-    if (isCabecalho(linhaTexto)) { descPendente = ""; continue; }
-    if (linhaTexto.includes("SALDO ANTERIOR")) { descPendente = ""; continue; }
+    if (debField && dataAtual) {
+      // === LINHA COM DÉBITO → gera lançamento ===
+      const parts = [...descPendente, ...(histText ? [histText] : [])];
+      let desc = parts.join(' ').trim();
+      descPendente = []; // reset sempre após processar débito
 
-    // Detecta se a linha tem algum valor monetário (crédito ou saldo)
-    let credField = "";
-    for (const item of itensLinha) {
-      if (item.x >= 370 && item.x < 440) credField = item.text;
-    }
-    const temValorMonetario = debField || credField || saldoField;
-
-    // Se tem débito → registra transação
-    const mDeb = debField.match(RE_DEB);
-    if (mDeb && dataAtual) {
-      // v8.2.1 FIX: só usa descPendente se veio de linha SEM data
-      // (linhas com data são transações independentes — INSS, SALARIO etc)
-      let desc = descPendente ? (descPendente + " " + histField).trim() : histField.trim();
-      descPendente = "";
-
-      // Limpeza de nº documento que grudou
-      desc = desc.replace(/\s*\d{5,}\s*/g, " ").trim();
+      // Limpa números de docto soltos (5+ dígitos isolados)
+      desc = desc.replace(/\b\d{5,}\b/g, '').replace(/\s{2,}/g, ' ').trim();
 
       if (!desc || isTransfer(desc)) continue;
-      const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
-      if (val > 0.009 && val < 50000) {
-        resultado.push({ data: dataAtual, descricao: desc.slice(0,250), valor: val });
+
+      const m = RE_DEB.exec(debField);
+      const val = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+      if (val >= 0.01 && val < 50000) {
+        const cat = classificar(desc);
+        if (cat) {
+          resultado.push({ data: dataAtual, descricao: desc.slice(0, 250), valor: val, categoria: cat });
+        }
       }
-    }
-    // Linha SEM data, SEM débito, SEM crédito/saldo → continuação de descrição
-    else if (!dataField && histField && !temValorMonetario) {
-      descPendente += (descPendente ? " " : "") + histField;
-    }
-    // Linha COM data mas sem débito → é outra transação (crédito/saldo)
-    // NÃO acumula como descPendente — reseta
-    else if (dataField) {
-      descPendente = "";
-    }
-    // Linha sem data mas com valor monetário (crédito/saldo sem débito) → ignora, reset
-    else {
-      descPendente = "";
+    } else if (!dataField && histText && !debField && !credField) {
+      // === LINHA SEM DATA, SEM DÉBITO, SEM CRÉDITO → continuação de descrição ===
+      descPendente.push(histText);
+    } else if (dataField) {
+      // === NOVA DATA (crédito, saldo anterior, etc.) → reset pendente ===
+      descPendente = [];
+    } else {
+      // Linha sem utilidade → reset
+      descPendente = [];
     }
   }
+
   return resultado;
 }
 
 // ── Parser Itaú ───────────────────────────────────────────────────────────────
-function parseItauText(texto){
-  const RE=/^(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(-[\d.]+,\d{2})\s+[\d.,]+\s*$/gm;
-  const r=[];let m;
-  while((m=RE.exec(texto))!==null){const[,data,desc,valStr]=m;if(isTransfer(desc))continue;const val=parseFloat(valStr.replace(/\./g,"").replace(",",".").replace("-",""));if(val>0.009&&val<50000)r.push({data,descricao:desc.slice(0,250),valor:val});}
+function parseItauText(texto) {
+  const RE = /^(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(-[\d.]+,\d{2})\s+[\d.,]+\s*$/gm;
+  const r = []; let m;
+  while ((m = RE.exec(texto)) !== null) {
+    const [, data, desc, valStr] = m;
+    if (isTransfer(desc)) continue;
+    const val = parseFloat(valStr.replace(/\./g,'').replace(',','.').replace('-',''));
+    if (val >= 0.01 && val < 50000) {
+      const cat = classificar(desc);
+      if (cat) r.push({ data, descricao: desc.slice(0,250), valor: val, categoria: cat });
+    }
+  }
   return r;
 }
 
 // ── Parser BB ─────────────────────────────────────────────────────────────────
-function parseBBText(texto){
-  const linhas=texto.split("\n"),r=[];let dataCurr=null;
-  for(const raw of linhas){const linha=raw.trim();if(!linha)continue;
-    const mData=linha.match(/^(\d{2}\/\d{2}\/\d{4})/);if(mData)dataCurr=mData[1];
-    const mLan=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+\S+\s+\S+\s+(.+?)\s+([\d.,]+)\s+\(-\)\s*$/);
-    if(mLan){const[,data,desc,valStr]=mLan;if(!isTransfer(desc)){const val=parseFloat(valStr.replace(/\./g,"").replace(",","."));if(val>0.009)r.push({data,descricao:desc.slice(0,250),valor:val});}continue;}
-    if(dataCurr){const mFb=linha.match(/^(.+?)\s+([\d.]+,\d{2})\s+\(-\)/);if(mFb){const desc=mFb[1].trim();if(!isTransfer(desc)){const val=parseFloat(mFb[2].replace(/\./g,"").replace(",","."));if(val>0.009)r.push({data:dataCurr,descricao:desc.slice(0,250),valor:val});}}}}
+function parseBBText(texto) {
+  const linhas = texto.split('\n'), r = []; let dataCurr = null;
+  for (const raw of linhas) {
+    const linha = raw.trim(); if (!linha) continue;
+    const mData = linha.match(/^(\d{2}\/\d{2}\/\d{4})/);
+    if (mData) dataCurr = mData[1];
+    const mLan = linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+\S+\s+\S+\s+(.+?)\s+([\d.,]+)\s+\(-\)\s*$/);
+    if (mLan) {
+      const [, data, desc, valStr] = mLan;
+      if (!isTransfer(desc)) {
+        const val = parseFloat(valStr.replace(/\./g,'').replace(',','.'));
+        const cat = classificar(desc);
+        if (val >= 0.01 && cat) r.push({ data, descricao: desc.slice(0,250), valor: val, categoria: cat });
+      }
+      continue;
+    }
+    if (dataCurr) {
+      const mFb = linha.match(/^(.+?)\s+([\d.]+,\d{2})\s+\(-\)/);
+      if (mFb) {
+        const desc = mFb[1].trim();
+        if (!isTransfer(desc)) {
+          const val = parseFloat(mFb[2].replace(/\./g,'').replace(',','.'));
+          const cat = classificar(desc);
+          if (val >= 0.01 && cat) r.push({ data: dataCurr, descricao: desc.slice(0,250), valor: val, categoria: cat });
+        }
+      }
+    }
+  }
   return r;
 }
 
 // ── Parser CEF ────────────────────────────────────────────────────────────────
-function parseCEFText(texto){
-  const RE=/^(\d{2}\/\d{2}\/\d{4})\s+\d+\s+(.+?)\s+([\d.,]+)\s+D\s+[\d.,]+\s+[CD]/gm;
-  const r=[];let m;
-  while((m=RE.exec(texto))!==null){const[,data,desc,valStr]=m;if(isTransfer(desc))continue;const val=parseFloat(valStr.replace(/\./g,"").replace(",","."));if(val>0.009&&val<50000)r.push({data,descricao:desc.slice(0,250),valor:val});}
+function parseCEFText(texto) {
+  const RE = /^(\d{2}\/\d{2}\/\d{4})\s+\d+\s+(.+?)\s+([\d.,]+)\s+D\s+[\d.,]+\s+[CD]/gm;
+  const r = []; let m;
+  while ((m = RE.exec(texto)) !== null) {
+    const [, data, desc, valStr] = m;
+    if (isTransfer(desc)) continue;
+    const val = parseFloat(valStr.replace(/\./g,'').replace(',','.'));
+    const cat = classificar(desc);
+    if (val >= 0.01 && val < 50000 && cat) r.push({ data, descricao: desc.slice(0,250), valor: val, categoria: cat });
+  }
   return r;
 }
 
 // ── Parser Santander ──────────────────────────────────────────────────────────
-function parseSantanderText(texto){
-  const ano=(texto.match(/(20\d{2})/)||[])[1]||new Date().getFullYear().toString();
-  const TERMOS=["TARIFA","MENSALIDADE","PACOTE SERVICOS","SEGURO","IOF","JUROS","MORA","ENCARGO"];
-  const r=[];let emMov=false;
-  for(const raw of texto.split("\n")){const linha=raw.trim();
-    if(linha.includes("Movimentação")||linha.includes("Data Descrição")){emMov=true;continue;}
-    if(emMov&&["Extrato_PF","Pagina:","Saldos por Período","Comprovantes de"].some(x=>linha.includes(x)))emMov=false;
-    if(!emMov)continue;const mData=linha.match(/^(\d{2}\/\d{2})\s+/);if(!mData)continue;
-    const data=`${mData[1]}/${ano}`,resto=linha.slice(mData[0].length).trim();
-    const mVal=resto.match(/([\d.]+,\d{2})-/);if(!mVal)continue;
-    const desc=resto.slice(0,mVal.index).trim();if(!desc||isTransfer(desc))continue;
-    const dU=desc.toUpperCase();if(!TERMOS.some(t=>dU.includes(t)))continue;
-    const val=parseFloat(mVal[1].replace(/\./g,"").replace(",","."));
-    if(val>0.009)r.push({data,descricao:desc.slice(0,250),valor:val});}
+function parseSantanderText(texto) {
+  const ano = (texto.match(/(20\d{2})/) || [])[1] || new Date().getFullYear().toString();
+  const r = []; let emMov = false;
+  for (const raw of texto.split('\n')) {
+    const linha = raw.trim();
+    if (linha.includes('Movimentação') || linha.includes('Data Descrição')) { emMov = true; continue; }
+    if (emMov && ['Extrato_PF','Pagina:','Saldos por Período','Comprovantes de'].some(x => linha.includes(x))) emMov = false;
+    if (!emMov) continue;
+    const mData = linha.match(/^(\d{2}\/\d{2})\s+/);
+    if (!mData) continue;
+    const data = `${mData[1]}/${ano}`, resto = linha.slice(mData[0].length).trim();
+    const mVal = resto.match(/([\d.]+,\d{2})-/);
+    if (!mVal) continue;
+    const desc = resto.slice(0, mVal.index).trim();
+    if (!desc || isTransfer(desc)) continue;
+    const val = parseFloat(mVal[1].replace(/\./g,'').replace(',','.'));
+    const cat = classificar(desc);
+    if (val >= 0.01 && cat) r.push({ data, descricao: desc.slice(0,250), valor: val, categoria: cat });
+  }
   return r;
 }
 
-// ── Parser genérico (fallback textual) ─────────────────────────────────────────
-function parseGenericoText(texto){
-  const linhas=texto.split("\n"),r=[];let dataCurr=null;
-  const reData=/(\d{2}\/\d{2}\/\d{4})/;
-  const RE_DEB_PAR=/(-\d{1,3}(?:\.\d{3})*,\d{2})\s+\d{1,3}(?:\.\d{3})*,\d{2}/g;
-  for(const raw of linhas){const linha=raw.trim();if(!linha||isCabecalho(linha))continue;
-    const mData=linha.match(reData);if(mData)dataCurr=mData[1];if(!dataCurr)continue;
-    RE_DEB_PAR.lastIndex=0;let m;
-    while((m=RE_DEB_PAR.exec(linha))!==null){
-      let desc=linha.slice(0,m.index).replace(reData,"").replace(/\d{5,}/g,"").trim();
-      if(!desc||isTransfer(desc))continue;
-      const val=parseFloat(m[1].replace(/\./g,"").replace(",",".").replace("-",""));
-      if(val>0.009&&val<50000)r.push({data:dataCurr,descricao:desc.slice(0,250),valor:val});
+// ── Parser genérico (fallback) ────────────────────────────────────────────────
+function parseGenericoText(texto) {
+  const linhas = texto.split('\n'), r = []; let dataCurr = null;
+  const reData = /(\d{2}\/\d{2}\/\d{4})/;
+  const RE_DEB_PAR = /(-\d{1,3}(?:\.\d{3})*,\d{2})\s+\d{1,3}(?:\.\d{3})*,\d{2}/g;
+  for (const raw of linhas) {
+    const linha = raw.trim();
+    if (!linha || isCabecalho(linha)) continue;
+    const mData = linha.match(reData);
+    if (mData) dataCurr = mData[1];
+    if (!dataCurr) continue;
+    RE_DEB_PAR.lastIndex = 0;
+    let m;
+    while ((m = RE_DEB_PAR.exec(linha)) !== null) {
+      let desc = linha.slice(0, m.index).replace(reData,'').replace(/\d{5,}/g,'').trim();
+      if (!desc || isTransfer(desc)) continue;
+      const val = parseFloat(m[1].replace(/\./g,'').replace(',','.').replace('-',''));
+      const cat = classificar(desc);
+      if (val >= 0.01 && val < 50000 && cat) r.push({ data: dataCurr, descricao: desc.slice(0,250), valor: val, categoria: cat });
     }
   }
   return r;
+}
+
+// ── Detecção de banco ─────────────────────────────────────────────────────────
+function detectarBanco(texto) {
+  const t = texto.toLowerCase();
+  if (t.includes('bradesco')) return 'bradesco';
+  if (t.includes('período de visualização') && t.includes('saldo do dia')) return 'itau';
+  if (t.includes('extrato de conta corrente') && t.includes('dia lote documento')) return 'bb';
+  if (t.includes('extrato por período') && t.includes('nr. doc')) return 'cef';
+  if (t.includes('extrato consolidado inteligente') || t.includes('santander')) return 'santander';
+  if (t.includes('itau') || t.includes('itaú')) return 'itau';
+  if (t.includes('banco do brasil')) return 'bb';
+  if (t.includes('caixa econômica') || t.includes('caixa economica')) return 'cef';
+  return 'generico';
 }
 
 // ── PDF.js ────────────────────────────────────────────────────────────────────
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-async function extrairPDF(file){
-  const ab=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
-  const paginasTexto=[],paginasItems=[];
-  for(let i=1;i<=pdf.numPages;i++){
-    const page=await pdf.getPage(i);
-    const content=await page.getTextContent();
-    paginasTexto.push(content.items.map(it=>it.str).join(" "));
+async function extrairPDF(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  const paginasTexto = [], paginasItems = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    paginasTexto.push(content.items.map(it => it.str).join(' '));
     paginasItems.push(content.items);
   }
-  const textoCompleto=paginasTexto.join("\n");
-  const banco=detectarBanco(textoCompleto);
-  const mediaChars=textoCompleto.length/pdf.numPages;
-  return{textoCompleto,paginasTexto,paginasItems,banco,mediaChars,numPaginas:pdf.numPages};
+  const textoCompleto = paginasTexto.join('\n');
+  const banco = detectarBanco(textoCompleto);
+  const mediaChars = textoCompleto.length / pdf.numPages;
+  return { textoCompleto, paginasTexto, paginasItems, banco, mediaChars, numPaginas: pdf.numPages };
 }
 
-// ── OCR (Tesseract.js sob demanda) ────────────────────────────────────────────
-let tesseractWorker=null;
-async function ocrPDF(file){
-  if(!tesseractWorker){log("Carregando Tesseract OCR...","warn");
-    if(typeof Tesseract==="undefined")await carregarScript("https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js");
-    tesseractWorker=await Tesseract.createWorker("por");}
-  const ab=await file.arrayBuffer();const blob=new Blob([ab],{type:"application/pdf"});
-  const url=URL.createObjectURL(blob);const{data:{text}}=await tesseractWorker.recognize(url);
-  URL.revokeObjectURL(url);return text;
+// ── OCR fallback ──────────────────────────────────────────────────────────────
+let tesseractWorker = null;
+async function ocrPDF(file) {
+  if (!tesseractWorker) {
+    log('Carregando Tesseract OCR...', 'warn');
+    if (typeof Tesseract === 'undefined') await carregarScript('https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js');
+    tesseractWorker = await Tesseract.createWorker('por');
+  }
+  const ab = await file.arrayBuffer();
+  const blob = new Blob([ab], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const { data: { text } } = await tesseractWorker.recognize(url);
+  URL.revokeObjectURL(url);
+  return text;
 }
-function carregarScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+function carregarScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
 
 // ── Pipeline principal ────────────────────────────────────────────────────────
-async function processarArquivo(file){
+async function processarArquivo(file) {
   let extraido;
-  try{extraido=await extrairPDF(file);}catch(e){log(`✗ Erro ao ler ${file.name}: ${e.message}`,"err");return[];}
-  const{textoCompleto,paginasItems,banco,mediaChars,numPaginas}=extraido;
+  try { extraido = await extrairPDF(file); }
+  catch (e) { log(`✗ Erro ao ler ${file.name}: ${e.message}`, 'err'); return []; }
+
+  const { textoCompleto, paginasItems, banco, mediaChars, numPaginas } = extraido;
   log(`  Banco: ${banco} · ${numPaginas} págs · ${Math.round(mediaChars)} chars/pág`);
-  let debitos=[];
-  if(mediaChars<200){
-    log("  Texto escasso → OCR (Tesseract.js)...","warn");
-    try{const textoOCR=await ocrPDF(file);debitos=parseGenericoText(textoOCR);log(`  OCR: ${debitos.length} lançamentos extraídos`);}
-    catch(e){log(`  ✗ OCR falhou: ${e.message}`,"err");}
+
+  let debitos = [];
+
+  if (mediaChars < 150) {
+    log('  Texto escasso → OCR (Tesseract.js)...', 'warn');
+    try {
+      const textoOCR = await ocrPDF(file);
+      debitos = parseGenericoText(textoOCR);
+      log(`  OCR: ${debitos.length} lançamentos extraídos`);
+    } catch (e) { log(`  ✗ OCR falhou: ${e.message}`, 'err'); }
   } else {
-    switch(banco){
-      case "bradesco":
-        const todosItems=paginasItems.flat();
-        debitos=parseBradescoPage(todosItems);
-        if(!debitos.length)debitos=parseGenericoText(textoCompleto);
+    switch (banco) {
+      case 'bradesco': {
+        // v9.0: processa cada página individualmente (não flatten global)
+        for (const pgItems of paginasItems) {
+          const pgResult = parseBradescoPage(pgItems);
+          debitos.push(...pgResult);
+        }
+        if (!debitos.length) {
+          log('  Parser Bradesco retornou 0 → tentando parseGenéricoText', 'warn');
+          debitos = parseGenericoText(textoCompleto);
+        }
         break;
-      case "itau":debitos=parseItauText(textoCompleto);break;
-      case "bb":debitos=parseBBText(textoCompleto);break;
-      case "cef":debitos=parseCEFText(textoCompleto);break;
-      case "santander":debitos=parseSantanderText(textoCompleto);break;
-      default:debitos=parseGenericoText(textoCompleto);
+      }
+      case 'itau':    debitos = parseItauText(textoCompleto); break;
+      case 'bb':      debitos = parseBBText(textoCompleto); break;
+      case 'cef':     debitos = parseCEFText(textoCompleto); break;
+      case 'santander': debitos = parseSantanderText(textoCompleto); break;
+      default:        debitos = parseGenericoText(textoCompleto);
     }
-    log(`  ${debitos.length} débitos extraídos (parser ${banco})`);
+    log(`  ${debitos.length} lançamentos extraídos (parser ${banco})`);
   }
-  const cobrancas=[];
-  for(const d of debitos){const cat=classificarCompleto(d.descricao);if(cat!=="Outros Descontos")cobrancas.push({...d,categoria:cat,arquivo:file.name});}
-  log(`  ✓ ${cobrancas.length} cobranças indevidas identificadas`,"ok");
+
+  // Deduplica por (data + desc[:50] + valor)
+  const seen = new Set();
+  const cobrancas = [];
+  for (const d of debitos) {
+    const k = `${d.data}|${d.descricao.slice(0,50)}|${d.valor.toFixed(2)}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    cobrancas.push({ ...d, arquivo: file.name });
+  }
+
+  log(`  ✓ ${cobrancas.length} cobranças indevidas identificadas`, 'ok');
   return cobrancas;
 }
 
 // ── ESTADO GLOBAL ─────────────────────────────────────────────────────────────
-let arquivos=[], allItems=[], filtered=[], activeCats=new Set(), logLines=[];
+let arquivos = [], allItems = [], filtered = [], activeCats = new Set(), logLines = [];
 
 // ── UI HELPERS ────────────────────────────────────────────────────────────────
-function fmt(v){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v);}
-function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function prog(p){document.getElementById("pFill").style.width=p+"%";}
-function setDot(s){const d=document.getElementById("dotStatus");d.className="hdr-dot"+(s==="ok"?" ok":s==="err"?" err":s==="run"?" run":"");}
-function log(msg,tipo=""){
-  logLines.push({msg,tipo});const box=document.getElementById("logBox");box.style.display="block";
-  box.innerHTML=logLines.slice(-100).map(l=>{const cls=l.tipo==="ok"?"lok":l.tipo==="err"?"lerr":l.tipo==="warn"?"lwarn":"";return`<span class="${cls}">${esc(l.msg)}</span>`;}).join("\n");
-  box.scrollTop=box.scrollHeight;
-  document.getElementById("statusMsg").textContent=msg.length>70?msg.slice(0,70)+"…":msg;
-  document.getElementById("hdrTxt").textContent=msg.length>45?msg.slice(0,45)+"…":msg;
+function fmt(v) { return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function prog(p) { document.getElementById('pFill').style.width = p + '%'; }
+function setDot(s) { const d = document.getElementById('dotStatus'); d.className = 'hdr-dot' + (s==='ok'?' ok':s==='err'?' err':s==='run'?' run':''); }
+function log(msg, tipo='') {
+  logLines.push({msg,tipo});
+  const box = document.getElementById('logBox');
+  box.style.display = 'block';
+  box.innerHTML = logLines.slice(-120).map(l => {
+    const cls = l.tipo==='ok'?'lok':l.tipo==='err'?'lerr':l.tipo==='warn'?'lwarn':'';
+    return `<span class="${cls}">${esc(l.msg)}</span>`;
+  }).join('\n');
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('statusMsg').textContent = msg.length > 70 ? msg.slice(0,70)+'…' : msg;
+  document.getElementById('hdrTxt').textContent = msg.length > 45 ? msg.slice(0,45)+'…' : msg;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// DROP ZONE — v8.2: CORRIGIDO event bubbling
-// ══════════════════════════════════════════════════════════════════════════════
-const dropZone = document.getElementById("dropZone");
-const fileInput = document.getElementById("fileInput");
-const btnSelectFiles = document.getElementById("btnSelectFiles");
+// ── DROP ZONE ─────────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const btnSelectFiles = document.getElementById('btnSelectFiles');
 
 function handleFiles(files) {
   const pdfs = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
-  if (!pdfs.length) { log("Nenhum arquivo PDF selecionado.", "warn"); return; }
+  if (!pdfs.length) { log('Nenhum arquivo PDF selecionado.', 'warn'); return; }
   arquivos = pdfs;
   document.getElementById('fileList').innerHTML = arquivos.map(f =>
     `<div class="file-item">
@@ -872,148 +981,278 @@ function handleFiles(files) {
   log(`${arquivos.length} arquivo(s) carregado(s).`);
 }
 
-// FIX v8.2: botão tem stopPropagation — não borbulha para dropZone
-btnSelectFiles.addEventListener("click", function(e) {
-  e.stopPropagation();  // ← CORREÇÃO CRÍTICA: impede double click
-  fileInput.value = "";  // ← permite re-seleção do mesmo arquivo
+btnSelectFiles.addEventListener('click', function(e) {
+  e.stopPropagation();
+  fileInput.value = '';
   fileInput.click();
 });
 
-// dropZone click como fallback (só dispara se clicar no fundo, não no botão)
-dropZone.addEventListener("click", function(e) {
+dropZone.addEventListener('click', function(e) {
   if (e.target === btnSelectFiles || btnSelectFiles.contains(e.target)) return;
-  fileInput.value = "";
+  fileInput.value = '';
   fileInput.click();
 });
 
-dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add("over"); };
-dropZone.ondragleave = () => dropZone.classList.remove("over");
-dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove("over"); handleFiles(e.dataTransfer.files); };
-
-fileInput.addEventListener("change", function(e) {
-  if (this.files && this.files.length > 0) {
-    handleFiles(this.files);
-  }
-});
+dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('over'); };
+dropZone.ondragleave = () => dropZone.classList.remove('over');
+dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove('over'); handleFiles(e.dataTransfer.files); };
+fileInput.addEventListener('change', function() { if (this.files && this.files.length > 0) handleFiles(this.files); });
 
 // ── ANÁLISE ───────────────────────────────────────────────────────────────────
-document.getElementById("btnAnalisar").onclick = async () => {
-  if(!arquivos.length){log("Selecione ao menos um PDF.","warn");return;}
-  allItems=[];logLines=[];filtered=[];activeCats=new Set();_modeloTreino=null;
-  prog(0);setDot("run");
-  document.getElementById("btnAnalisar").innerHTML='<span class="spinner"></span> Analisando…';
-  document.getElementById("btnAnalisar").disabled=true;
-  document.getElementById("resultCard").style.display="none";
-  document.getElementById("logBox").style.display="none";
-  document.getElementById("logBox").innerHTML="";
-  log("Iniciando análise…");
-  const total=arquivos.length;
-  for(let i=0;i<total;i++){
-    const f=arquivos[i];log(`[${i+1}/${total}] ${f.name}`);prog(10+(i/total)*80);
-    try{const cobr=await processarArquivo(f);allItems.push(...cobr);}catch(e){log(`✗ ${f.name}: ${e.message}`,"err");}
+document.getElementById('btnAnalisar').onclick = async () => {
+  if (!arquivos.length) { log('Selecione ao menos um PDF.', 'warn'); return; }
+  allItems = []; logLines = []; filtered = []; activeCats = new Set();
+  prog(0); setDot('run');
+  document.getElementById('btnAnalisar').innerHTML = '<span class="spinner"></span> Analisando…';
+  document.getElementById('btnAnalisar').disabled = true;
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('logBox').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+  log('Iniciando análise v9.0…');
+  const total = arquivos.length;
+  for (let i = 0; i < total; i++) {
+    const f = arquivos[i];
+    log(`[${i+1}/${total}] ${f.name}`);
+    prog(10 + (i / total) * 80);
+    try { const cobr = await processarArquivo(f); allItems.push(...cobr); }
+    catch (e) { log(`✗ ${f.name}: ${e.message}`, 'err'); }
   }
   prog(100);
-  if(!allItems.length){log("⚠ Nenhuma cobrança indevida identificada nos extratos.","warn");setDot("err");}
-  else{
-    log(`✓ Análise concluída — ${allItems.length} cobrança(s) identificada(s). Total: ${fmt(allItems.reduce((a,b)=>a+b.valor,0))}`,"ok");
-    setDot("ok");["btnXLSX","btnCSV","btnPDF"].forEach(id=>document.getElementById(id).disabled=false);
-    document.getElementById("resultCard").style.display="block";renderKPIs();construirCatPills();renderizar();
-    document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
+  if (!allItems.length) {
+    log('⚠ Nenhuma cobrança indevida identificada nos extratos.', 'warn');
+    setDot('err');
+  } else {
+    const totalVal = allItems.reduce((a,b) => a+b.valor, 0);
+    log(`✓ Análise concluída — ${allItems.length} cobrança(s). Total: ${fmt(totalVal)}`, 'ok');
+    setDot('ok');
+    ['btnXLSX','btnCSV','btnPDF'].forEach(id => document.getElementById(id).disabled = false);
+    document.getElementById('resultCard').style.display = 'block';
+    renderKPIs(); construirCatPills(); renderizar();
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
   }
-  document.getElementById("btnAnalisar").innerHTML="🔍 Analisar";
-  document.getElementById("btnAnalisar").disabled=false;
+  document.getElementById('btnAnalisar').innerHTML = '🔍 Analisar';
+  document.getElementById('btnAnalisar').disabled = false;
 };
 
 // ── KPIs ──────────────────────────────────────────────────────────────────────
-function renderKPIs(){
-  const cats={},total=allItems.reduce((a,b)=>a+b.valor,0);
-  allItems.forEach(it=>cats[it.categoria]=(cats[it.categoria]||0)+it.valor);
-  let html=`<div class="kpi-card hl"><div class="kpi-label">💰 Total Geral</div><div class="kpi-val">${fmt(total)}</div><div class="kpi-sub">${allItems.length} lançamento(s)</div></div>`;
-  for(const[cat,val]of Object.entries(cats).sort((a,b)=>b[1]-a[1])){
-    const pct=total>0?((val/total)*100).toFixed(1):"0.0";
-    html+=`<div class="kpi-card"><div class="kpi-label">${esc(cat)}</div><div class="kpi-val" style="font-size:1.2rem">${fmt(val)}</div><div class="kpi-sub">${pct}% do total</div></div>`;
+function renderKPIs() {
+  const cats = {}, total = allItems.reduce((a,b) => a+b.valor, 0);
+  allItems.forEach(it => cats[it.categoria] = (cats[it.categoria] || 0) + it.valor);
+  let html = `<div class="kpi-card hl"><div class="kpi-label">💰 Total Geral</div><div class="kpi-val">${fmt(total)}</div><div class="kpi-sub">${allItems.length} lançamento(s)</div></div>`;
+  for (const [cat, val] of Object.entries(cats).sort((a,b) => b[1]-a[1])) {
+    const pct = total > 0 ? ((val/total)*100).toFixed(1) : '0.0';
+    html += `<div class="kpi-card"><div class="kpi-label">${esc(cat)}</div><div class="kpi-val" style="font-size:1.2rem">${fmt(val)}</div><div class="kpi-sub">${pct}% do total</div></div>`;
   }
-  document.getElementById("kpiGrid").innerHTML=html;
+  document.getElementById('kpiGrid').innerHTML = html;
 }
 
 // ── Category Pills + Table ────────────────────────────────────────────────────
-const CAT_TAG={"Parcela Empréstimo":"tag-red","Mora/Juros":"tag-orange","Tarifa Bancária":"tag-teal","Seguro":"tag-purple","IOF":"tag-gold"};
-function tagCat(cat){return`<span class="tag ${CAT_TAG[cat]||"tag-teal"}">${esc(cat)}</span>`;}
-function construirCatPills(){
-  const cats=[...new Set(allItems.map(i=>i.categoria))].sort();activeCats=new Set(cats);
-  const div=document.getElementById("catPills");div.innerHTML="";
-  cats.forEach(cat=>{const btn=document.createElement("button");btn.className="cat-pill active";btn.textContent=cat;
-    btn.onclick=()=>{if(activeCats.has(cat)){activeCats.delete(cat);btn.classList.remove("active");}else{activeCats.add(cat);btn.classList.add("active");}renderizar();};
-    div.appendChild(btn);});
+const CAT_TAG = {
+  "Parcela Empréstimo":"tag-red",
+  "Mora/Juros":"tag-orange",
+  "Tarifa Bancária":"tag-teal",
+  "Seguro":"tag-purple",
+  "IOF":"tag-gold",
+};
+function tagCat(cat) { return `<span class="tag ${CAT_TAG[cat]||'tag-teal'}">${esc(cat)}</span>`; }
+
+function construirCatPills() {
+  const cats = [...new Set(allItems.map(i => i.categoria))].sort();
+  activeCats = new Set(cats);
+  const div = document.getElementById('catPills');
+  div.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-pill active';
+    btn.textContent = cat;
+    btn.onclick = () => {
+      if (activeCats.has(cat)) { activeCats.delete(cat); btn.classList.remove('active'); }
+      else { activeCats.add(cat); btn.classList.add('active'); }
+      renderizar();
+    };
+    div.appendChild(btn);
+  });
 }
 
-function renderizar(){
-  const agrupar=document.getElementById("chkMes").checked;
-  const dtS=document.getElementById("dtStart").value,dtE=document.getElementById("dtEnd").value;
-  filtered=allItems.filter(it=>{
-    if(!activeCats.has(it.categoria))return false;
-    if(dtS||dtE){const p=(it.data||"").split("/");if(p.length===3){const d=new Date(+p[2],+p[1]-1,+p[0]);
-      if(dtS){const[y,m]=dtS.split("-");if(d<new Date(+y,+m-1,1))return false;}
-      if(dtE){const[y,m]=dtE.split("-");if(d>=new Date(+y,+m,1))return false;}}}
+function renderizar() {
+  const agrupar = document.getElementById('chkMes').checked;
+  const dtS = document.getElementById('dtStart').value;
+  const dtE = document.getElementById('dtEnd').value;
+
+  filtered = allItems.filter(it => {
+    if (!activeCats.has(it.categoria)) return false;
+    if (dtS || dtE) {
+      const p = (it.data||'').split('/');
+      if (p.length === 3) {
+        const d = new Date(+p[2], +p[1]-1, +p[0]);
+        if (dtS) { const [y,m] = dtS.split('-'); if (d < new Date(+y,+m-1,1)) return false; }
+        if (dtE) { const [y,m] = dtE.split('-'); if (d >= new Date(+y,+m,1)) return false; }
+      }
+    }
     return true;
   });
-  let exibir=[];
-  if(agrupar){
-    const mapa=new Map();filtered.forEach(it=>{if(!it.data)return;const p=it.data.split("/");const k=`${p[2]}-${p[1].padStart(2,"0")}`;if(!mapa.has(k))mapa.set(k,{k,val:0,cats:{}});const g=mapa.get(k);g.val+=it.valor;g.cats[it.categoria]=(g.cats[it.categoria]||0)+it.valor;});
-    const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-    exibir=[...mapa.values()].sort((a,b)=>a.k.localeCompare(b.k)).map(g=>({data:(()=>{const[y,m]=g.k.split("-");return`${meses[+m-1]} ${y}`;})(),descricao:Object.entries(g.cats).map(([c,v])=>`${c}: ${fmt(v)}`).join(" · "),valor:g.val,categoria:"Agrupado",arquivo:"—"}));
+
+  let exibir = [];
+  if (agrupar) {
+    const mapa = new Map();
+    filtered.forEach(it => {
+      if (!it.data) return;
+      const p = it.data.split('/');
+      const k = `${p[2]}-${p[1].padStart(2,'0')}`;
+      if (!mapa.has(k)) mapa.set(k, { k, val: 0, cats: {} });
+      const g = mapa.get(k);
+      g.val += it.valor;
+      g.cats[it.categoria] = (g.cats[it.categoria] || 0) + it.valor;
+    });
+    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    exibir = [...mapa.values()].sort((a,b) => a.k.localeCompare(b.k)).map(g => ({
+      data: (() => { const [y,m] = g.k.split('-'); return `${meses[+m-1]} ${y}`; })(),
+      descricao: Object.entries(g.cats).map(([c,v]) => `${c}: ${fmt(v)}`).join(' · '),
+      valor: g.val, categoria: 'Agrupado', arquivo: '—'
+    }));
   } else {
-    exibir=[...filtered].sort((a,b)=>{const pa=(a.data||"").split("/").reverse().join(""),pb=(b.data||"").split("/").reverse().join("");return pa.localeCompare(pb);});
+    exibir = [...filtered].sort((a,b) => {
+      const pa = (a.data||'').split('/').reverse().join('');
+      const pb = (b.data||'').split('/').reverse().join('');
+      return pa.localeCompare(pb);
+    });
   }
-  const totalFilt=filtered.reduce((a,b)=>a+b.valor,0);const tbody=document.getElementById("tblBody");
-  if(!exibir.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`;}
-  else{tbody.innerHTML=exibir.map(r=>`<tr><td class="td-date">${esc(r.data||"—")}</td><td>${esc(r.descricao)}</td><td class="td-val">${fmt(r.valor)}</td><td>${r.categoria==="Agrupado"?'<span class="tag tag-teal">Agrupado</span>':tagCat(r.categoria)}</td><td style="font-size:.7rem;color:var(--gray-mid);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.arquivo)}">${esc(r.arquivo)}</td></tr>`).join("");}
-  document.getElementById("infoCount").textContent=`${exibir.length} linha(s) · ${filtered.length} lançamento(s)`;
-  document.getElementById("tagTotal").textContent=`Total: ${fmt(totalFilt)}`;
+
+  const totalFilt = filtered.reduce((a,b) => a+b.valor, 0);
+  const tbody = document.getElementById('tblBody');
+
+  if (!exibir.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`;
+  } else {
+    tbody.innerHTML = exibir.map(r =>
+      `<tr>
+        <td class="td-date">${esc(r.data||'—')}</td>
+        <td>${esc(r.descricao)}</td>
+        <td class="td-val">${fmt(r.valor)}</td>
+        <td>${r.categoria==='Agrupado'?'<span class="tag tag-teal">Agrupado</span>':tagCat(r.categoria)}</td>
+        <td style="font-size:.7rem;color:var(--gray-mid);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.arquivo)}">${esc(r.arquivo)}</td>
+      </tr>`
+    ).join('');
+  }
+  document.getElementById('infoCount').textContent = `${exibir.length} linha(s) · ${filtered.length} lançamento(s)`;
+  document.getElementById('tagTotal').textContent = `Total: ${fmt(totalFilt)}`;
 }
 
 // ── EXPORTAÇÃO ────────────────────────────────────────────────────────────────
-document.getElementById("btnXLSX").onclick=()=>{if(!filtered.length)return;const ws=XLSX.utils.json_to_sheet(filtered.map(r=>({"Data":r.data||"","Descrição":r.descricao,"Valor (R$)":r.valor.toFixed(2).replace(".",","),"Categoria":r.categoria,"Arquivo":r.arquivo})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Cobranças");XLSX.writeFile(wb,`LAADV_${new Date().toISOString().slice(0,10)}.xlsx`);};
+document.getElementById('btnXLSX').onclick = () => {
+  if (!filtered.length) return;
+  const ws = XLSX.utils.json_to_sheet(filtered.map(r => ({
+    'Data': r.data||'', 'Descrição': r.descricao,
+    'Valor (R$)': r.valor.toFixed(2).replace('.',','),
+    'Categoria': r.categoria, 'Arquivo': r.arquivo
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cobranças');
+  XLSX.writeFile(wb, `LAADV_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
 
-document.getElementById("btnCSV").onclick=()=>{if(!filtered.length)return;const rows=[["Data","Descrição","Valor (R$)","Categoria","Arquivo"]];filtered.forEach(r=>rows.push([r.data||"",r.descricao,r.valor.toFixed(2).replace(".",","),r.categoria,r.arquivo]));const csv="\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`LAADV_${new Date().toISOString().slice(0,10)}.csv`;a.click();};
+document.getElementById('btnCSV').onclick = () => {
+  if (!filtered.length) return;
+  const rows = [['Data','Descrição','Valor (R$)','Categoria','Arquivo']];
+  filtered.forEach(r => rows.push([r.data||'', r.descricao, r.valor.toFixed(2).replace('.',','), r.categoria, r.arquivo]));
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `LAADV_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+};
 
-function exportarPDF(){
-  if(!filtered.length)return;const total=filtered.reduce((a,b)=>a+b.valor,0);const agora=new Date().toLocaleString("pt-BR");
-  const cats={};filtered.forEach(r=>cats[r.categoria]=(cats[r.categoria]||0)+r.valor);
-  const resumo=Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`${c}: ${fmt(v)}`).join(" · ");
-  document.getElementById("printInfo").innerHTML=`<div><strong>Total: ${fmt(total)}</strong></div><div>${filtered.length} lançamento(s)</div><div>${resumo}</div><div>Gerado em: ${agora}</div>`;
+function exportarPDF() {
+  if (!filtered.length) return;
+  const total = filtered.reduce((a,b) => a+b.valor, 0);
+  const agora = new Date().toLocaleString('pt-BR');
+  const cats = {};
+  filtered.forEach(r => cats[r.categoria] = (cats[r.categoria]||0) + r.valor);
+  const resumo = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`${c}: ${fmt(v)}`).join(' · ');
+  document.getElementById('printInfo').innerHTML =
+    `<div><strong>Total: ${fmt(total)}</strong></div><div>${filtered.length} lançamento(s)</div><div>${resumo}</div><div>Gerado em: ${agora}</div>`;
   window.print();
 }
 
 // ── LIMPAR ────────────────────────────────────────────────────────────────────
-document.getElementById("btnLimpar").onclick=()=>{
-  arquivos=[];allItems=[];filtered=[];logLines=[];activeCats=new Set();
-  ["fileList","tblBody","kpiGrid","catPills"].forEach(id=>document.getElementById(id).innerHTML="");
-  document.getElementById("statusMsg").textContent="";
-  document.getElementById("logBox").style.display="none";document.getElementById("logBox").innerHTML="";
-  document.getElementById("resultCard").style.display="none";
-  ["btnXLSX","btnCSV","btnPDF"].forEach(id=>document.getElementById(id).disabled=true);
-  document.getElementById("dtStart").value="";document.getElementById("dtEnd").value="";
-  fileInput.value="";  // v8.2: reset do input
-  setDot("");document.getElementById("hdrTxt").textContent="Pronto";prog(0);
+document.getElementById('btnLimpar').onclick = () => {
+  arquivos = []; allItems = []; filtered = []; logLines = []; activeCats = new Set();
+  ['fileList','tblBody','kpiGrid','catPills'].forEach(id => document.getElementById(id).innerHTML = '');
+  document.getElementById('statusMsg').textContent = '';
+  document.getElementById('logBox').style.display = 'none';
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('resultCard').style.display = 'none';
+  ['btnXLSX','btnCSV','btnPDF'].forEach(id => document.getElementById(id).disabled = true);
+  document.getElementById('dtStart').value = '';
+  document.getElementById('dtEnd').value = '';
+  fileInput.value = '';
+  setDot(''); document.getElementById('hdrTxt').textContent = 'Pronto'; prog(0);
 };
 
 // ── FILTROS ───────────────────────────────────────────────────────────────────
-document.getElementById("chkMes").onchange=renderizar;
-document.getElementById("btnFiltrar").onclick=renderizar;
+document.getElementById('chkMes').onchange = renderizar;
+document.getElementById('btnFiltrar').onclick = renderizar;
 
 // ── MODAL KEYWORDS ────────────────────────────────────────────────────────────
-let kwCatSel=null;
-function abrirModalKw(){document.getElementById("modalKw").classList.add("open");document.getElementById("kwEditor").classList.remove("open");document.getElementById("kwSalvarBtn").disabled=true;kwCatSel=null;renderKwCats();}
-function fecharModalKw(){document.getElementById("modalKw").classList.remove("open");}
-function renderKwCats(){document.getElementById("kwCatList").innerHTML=Object.entries(KEYWORDS).map(([cat,kws])=>`<div class="kw-cat-item${cat===kwCatSel?" selected":""}" onclick="selecionarKwCat('${esc(cat)}')""><span>${esc(cat)}</span><span class="kw-count">${kws.length} termo(s)</span></div>`).join("");}
-function selecionarKwCat(cat){kwCatSel=cat;document.querySelectorAll(".kw-cat-item").forEach(el=>{el.classList.toggle("selected",el.textContent.trim().startsWith(cat));});document.getElementById("kwEditorTitle").textContent=`Editando: ${cat}`;document.getElementById("kwTextarea").value=(KEYWORDS[cat]||[]).join("\n");document.getElementById("kwEditor").classList.add("open");document.getElementById("kwSalvarBtn").disabled=false;}
-function salvarKeywords(){if(!kwCatSel)return;const linhas=document.getElementById("kwTextarea").value.split("\n").map(l=>l.trim().toUpperCase()).filter(Boolean);if(!linhas.length){alert("Digite ao menos um termo.");return;}KEYWORDS[kwCatSel]=linhas;salvarKwStorage();_modeloTreino=null;log(`✓ Keywords salvas — ${linhas.length} termos em "${kwCatSel}".`,"ok");renderKwCats();document.getElementById("kwSalvarBtn").textContent="✓ Salvo!";setTimeout(()=>{document.getElementById("kwSalvarBtn").textContent="💾 Salvar";},1500);}
-function adicionarCategoria(){const nome=document.getElementById("newCatInput").value.trim();if(!nome)return;if(!KEYWORDS[nome])KEYWORDS[nome]=[];salvarKwStorage();document.getElementById("newCatInput").value="";renderKwCats();selecionarKwCat(nome);}
-document.getElementById("modalKw").addEventListener("click",function(e){if(e.target===this)fecharModalKw();});
+let kwCatSel = null;
 
-console.log("LAADV Analisador v8.2 · AKE UFT-1.0 · GitHub Pages Ready");
-console.log("AKE_BUILD_LOG:",AKE_BUILD_LOG);
+function abrirModalKw() {
+  document.getElementById('modalKw').classList.add('open');
+  document.getElementById('kwEditor').classList.remove('open');
+  document.getElementById('kwSalvarBtn').disabled = true;
+  kwCatSel = null;
+  renderKwCats();
+}
+function fecharModalKw() { document.getElementById('modalKw').classList.remove('open'); }
+
+function renderKwCats() {
+  document.getElementById('kwCatList').innerHTML = Object.entries(KEYWORDS).map(([cat,kws]) =>
+    `<div class="kw-cat-item${cat===kwCatSel?' selected':''}" onclick="selecionarKwCat('${esc(cat)}')">
+      <span>${esc(cat)}</span>
+      <span class="kw-count">${kws.length} termo(s)</span>
+    </div>`
+  ).join('');
+}
+
+function selecionarKwCat(cat) {
+  kwCatSel = cat;
+  document.querySelectorAll('.kw-cat-item').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('span')?.textContent?.trim() === cat);
+  });
+  document.getElementById('kwEditorTitle').textContent = `Editando: ${cat}`;
+  document.getElementById('kwTextarea').value = (KEYWORDS[cat]||[]).join('\n');
+  document.getElementById('kwEditor').classList.add('open');
+  document.getElementById('kwSalvarBtn').disabled = false;
+}
+
+function salvarKeywords() {
+  if (!kwCatSel) return;
+  const linhas = document.getElementById('kwTextarea').value
+    .split('\n').map(l => l.trim().toUpperCase()).filter(Boolean);
+  if (!linhas.length) { alert('Digite ao menos um termo.'); return; }
+  KEYWORDS[kwCatSel] = linhas;
+  salvarKwStorage();
+  log(`✓ Keywords salvas — ${linhas.length} termos em "${kwCatSel}".`, 'ok');
+  renderKwCats();
+  document.getElementById('kwSalvarBtn').textContent = '✓ Salvo!';
+  setTimeout(() => { document.getElementById('kwSalvarBtn').textContent = '💾 Salvar'; }, 1500);
+}
+
+function adicionarCategoria() {
+  const nome = document.getElementById('newCatInput').value.trim();
+  if (!nome) return;
+  if (!KEYWORDS[nome]) KEYWORDS[nome] = [];
+  salvarKwStorage();
+  document.getElementById('newCatInput').value = '';
+  renderKwCats();
+  selecionarKwCat(nome);
+}
+
+document.getElementById('modalKw').addEventListener('click', function(e) {
+  if (e.target === this) fecharModalKw();
+});
+
+console.log('LAADV Analisador v9.0 — Parser Bradesco Reconstruído · Zonas X calibradas via pdfplumber');
 </script>
 </body>
 </html>
