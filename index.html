@@ -667,12 +667,20 @@ function parseBradescoPage(items) {
     if (isCabecalho(linhaTexto)) { descPendente = ""; continue; }
     if (linhaTexto.includes("SALDO ANTERIOR")) { descPendente = ""; continue; }
 
+    // Detecta se a linha tem algum valor monetário (crédito ou saldo)
+    let credField = "";
+    for (const item of itensLinha) {
+      if (item.x >= 370 && item.x < 440) credField = item.text;
+    }
+    const temValorMonetario = debField || credField || saldoField;
+
     // Se tem débito → registra transação
     const mDeb = debField.match(RE_DEB);
     if (mDeb && dataAtual) {
-      // Combina descrição pendente (multilinha) com a atual
+      // v8.2.1 FIX: só usa descPendente se veio de linha SEM data
+      // (linhas com data são transações independentes — INSS, SALARIO etc)
       let desc = descPendente ? (descPendente + " " + histField).trim() : histField.trim();
-      descPendente = "";  // reset
+      descPendente = "";
 
       // Limpeza de nº documento que grudou
       desc = desc.replace(/\s*\d{5,}\s*/g, " ").trim();
@@ -683,13 +691,18 @@ function parseBradescoPage(items) {
         resultado.push({ data: dataAtual, descricao: desc.slice(0,250), valor: val });
       }
     }
-    // Se NÃO tem débito e NÃO tem data → é continuação da descrição
-    else if (!dataField && histField && !debField) {
+    // Linha SEM data, SEM débito, SEM crédito/saldo → continuação de descrição
+    else if (!dataField && histField && !temValorMonetario) {
       descPendente += (descPendente ? " " : "") + histField;
     }
-    // Se tem data mas sem débito → nova data, reset descrição pendente
-    else if (dataField && !debField) {
-      descPendente = histField || "";
+    // Linha COM data mas sem débito → é outra transação (crédito/saldo)
+    // NÃO acumula como descPendente — reseta
+    else if (dataField) {
+      descPendente = "";
+    }
+    // Linha sem data mas com valor monetário (crédito/saldo sem débito) → ignora, reset
+    else {
+      descPendente = "";
     }
   }
   return resultado;
