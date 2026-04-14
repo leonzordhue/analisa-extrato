@@ -651,6 +651,7 @@ const TRANSFER_PREFIXOS_RE = [
   /^SAQUE /i,
   /^RENDIMENTO/i,/^REGULARIZACAO/i,/^COD\.\s*LANC/i,
   /^INSS\b/i,/^DEP DINHEIRO/i,/^TRANSF CC/i,/^TRANSF RECURSO/i,
+  /^PAGTO ELETRON COBRANCA$/i,  // genérico sem nome de seguradora = pagamento normal
 ];
 const TRANSFER_CONTAINS = [
   "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","SALDO EM ",
