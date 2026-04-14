@@ -675,11 +675,13 @@ function isCabecalho(texto) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PARSER BRADESCO v8.3 — HÍBRIDO: coordenadas + regex adaptativo
-// Tenta primeiro por zonas X (Bradesco Celular), se falhar usa regex por linha
+// PARSER BRADESCO v8.3 — Zonas X adaptativas + valores sem sinal negativo
+// Bradesco Celular: débitos na coluna "Débito (R$)" são positivos (sem "-")
+// A diferenciação crédito vs débito é feita pela posição X, não pelo sinal
+// Zonas calibradas: Data<110, Hist 110-300, Docto 300-380, Cred 380-450,
+//                   Deb 450-520, Saldo 520+
 // ══════════════════════════════════════════════════════════════════════════════
 function parseBradescoPage(items) {
-  // Agrupa por linha (Y similar — tolerância de 3 unidades)
   const linhasMap = new Map();
   for (const it of items) {
     if (!it.str.trim()) continue;
@@ -694,8 +696,8 @@ function parseBradescoPage(items) {
   }
 
   const RE_DATA = /^\d{2}\/\d{2}\/\d{4}$/;
-  const RE_DEB  = /^-(\d{1,3}(?:\.\d{3})*,\d{2})$/;
-  const RE_DEB_INLINE = /(-\d{1,3}(?:\.\d{3})*,\d{2})/;
+  // Aceita valor COM ou SEM sinal negativo
+  const RE_VALOR = /^-?(\d{1,3}(?:\.\d{3})*,\d{2})$/;
   const resultado = [];
   let dataAtual = null;
   let descPendente = "";
@@ -706,63 +708,63 @@ function parseBradescoPage(items) {
     const itensLinha = linhasMap.get(y).sort((a,b) => a.x - b.x);
     const linhaTexto = itensLinha.map(i => i.text).join(" ");
 
-    // Filtra cabeçalhos
     if (isCabecalho(linhaTexto)) { descPendente = ""; continue; }
     if (linhaTexto.includes("SALDO ANTERIOR") || /^Total\b/i.test(linhaTexto)) { descPendente = ""; continue; }
+    if (/^COD\.\s*LANC/i.test(linhaTexto)) { descPendente = ""; continue; }
 
-    // ── ESTRATÉGIA 1: Zonas X (Bradesco Celular) ──────────────────────────
+    // Extrai campos por zona X (calibrado com PDFs reais do Bradesco Celular)
     let dataField = "", histField = "", debField = "", credField = "", saldoField = "";
     for (const item of itensLinha) {
-      if (item.x < 100) {
+      const x = item.x;
+      if (x < 110) {
         if (RE_DATA.test(item.text)) dataField = item.text;
-      } else if (item.x >= 100 && item.x < 280) {
+      } else if (x >= 110 && x < 300) {
         histField += (histField ? " " : "") + item.text;
-      } else if (item.x >= 280 && item.x < 370) {
+      } else if (x >= 300 && x < 380) {
         // docto — ignorar
-      } else if (item.x >= 370 && item.x < 440) {
-        credField = item.text;
-      } else if (item.x >= 440 && item.x < 520) {
-        debField = item.text;
-      } else if (item.x >= 520) {
+      } else if (x >= 380 && x < 450) {
+        // Crédito — valor positivo na coluna de crédito
+        if (RE_VALOR.test(item.text)) credField = item.text;
+      } else if (x >= 450 && x < 520) {
+        // Débito — valor (com ou sem "-") na coluna de débito
+        if (RE_VALOR.test(item.text)) debField = item.text;
+      } else if (x >= 520) {
         saldoField = item.text;
       }
     }
 
-    // Se não encontrou débito por zona X, tenta por regex na linha completa
-    if (!RE_DEB.test(debField)) {
-      // Procura qualquer valor negativo na linha
-      const allTexts = itensLinha.map(i => i.text);
-      for (let i = 0; i < allTexts.length; i++) {
-        if (RE_DEB.test(allTexts[i])) {
-          debField = allTexts[i];
-          // Tudo antes do débito (exceto data e docto) é descrição
-          if (!histField) {
-            histField = allTexts.slice(0, i)
-              .filter(t => !RE_DATA.test(t) && !/^\d{4,}$/.test(t))
-              .join(" ");
-          }
-          // Tudo depois do débito pode ser saldo
-          if (!saldoField && allTexts[i+1]) saldoField = allTexts[i+1];
-          break;
-        }
-      }
-    }
-
-    // Detecta data do início da linha
+    // Detecta data
     if (!dataField) {
       const firstText = itensLinha[0]?.text || "";
       if (RE_DATA.test(firstText)) dataField = firstText;
     }
-
     if (dataField) dataAtual = dataField;
 
+    // Verifica se tem débito (com ou sem "-")
+    const mDeb = debField ? debField.match(RE_VALOR) : null;
     const temValorMonetario = debField || credField || saldoField;
-    const mDeb = debField ? debField.match(RE_DEB) : null;
 
     if (mDeb && dataAtual) {
-      let desc = descPendente ? (descPendente + " " + histField).trim() : histField.trim();
+      // v8.3 FIX: descPendente só é usado se contém texto que parece rubrica bancária
+      // Caso contrário (nome de pessoa, detalhe de transferência), descarta
+      let desc;
+      if (descPendente) {
+        const dpUpper = descPendente.toUpperCase();
+        const pareceRubrica = ["TARIFA","CESTA","PACOTE","PEND","SEGURO","MORA","IOF",
+          "ENCARGO","ANUIDADE","EMISSAO","EXTRATO","SAQUE","JUROS","CARTAO","RMC","RCC",
+          "CAPITALIZACAO","GASTO","BX.ANT","BX ANT","LIQUID","CREDITO PESSOAL","EMPRESTIMO",
+          "PARCELA","PAGTO ELETRON"].some(kw => dpUpper.includes(kw));
+        desc = pareceRubrica ? (descPendente + " " + histField).trim() : histField.trim();
+      } else {
+        desc = histField.trim();
+      }
       descPendente = "";
+      // Limpeza de nº documento, códigos bancários e detalhes de agência
       desc = desc.replace(/\s*\d{5,}\s*/g, " ").trim();
+      desc = desc.replace(/Ag\d{4,}\S*/gi, "").trim();
+      desc = desc.replace(/Poup\s+Facil[^$]*/gi, "").trim();
+      desc = desc.replace(/\s{2,}/g, " ").trim();
+
       if (!desc || isTransfer(desc)) continue;
       const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
       if (val > 0.009 && val < 50000) {
