@@ -641,14 +641,16 @@ function detectarBanco(texto){
 
 // ── Filtro de transferências ──────────────────────────────────────────────────
 const TRANSFER_PREFIXOS_RE = [
-  /^PIX /i,/^ENVIO PIX/i,/^TED /i,/^DOC /i,
-  /^TRANSFERENCIA /i,/^TRANSF /i,
+  /^PIX /i,/^ENVIO PIX/i,/^TED /i,/^TED-/i,/^DOC /i,
+  /^TRANSFERENCIA /i,/^TRANSF /i,/^TRANSF$/i,
   /^CRED INSS/i,/^CRED PIX/i,/^CRED SALARIO/i,
   /^CREDITO SALARIO/i,/^CREDITO INSS/i,
   /^SALARIO /i,/^SALARIO,/i,/^REMUNERACAO /i,
   /^DEPOSITO /i,/^DEP /i,/^DEB IRPF/i,
   /^RSCSS /i,/^RSHOP /i,
-  /^SAQUE /i,  // "SAQUE " com espaço = transação normal (ATM, BANCO24HORAS)
+  /^SAQUE /i,
+  /^RENDIMENTO/i,/^REGULARIZACAO/i,/^COD\.\s*LANC/i,
+  /^INSS\b/i,/^DEP DINHEIRO/i,/^TRANSF CC/i,/^TRANSF RECURSO/i,
 ];
 const TRANSFER_CONTAINS = [
   "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","SALDO EM ",
@@ -675,13 +677,13 @@ function isCabecalho(texto) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PARSER BRADESCO v8.3 — Zonas X adaptativas + valores sem sinal negativo
-// Bradesco Celular: débitos na coluna "Débito (R$)" são positivos (sem "-")
-// A diferenciação crédito vs débito é feita pela posição X, não pelo sinal
-// Zonas calibradas: Data<110, Hist 110-300, Docto 300-380, Cred 380-450,
-//                   Deb 450-520, Saldo 520+
+// PARSER BRADESCO v8.3 — Blocos por gap Y
+// Cada transação no Bradesco Celular = 2-3 linhas com gap ≤8px entre elas.
+// Nova transação = gap >15px. Isso elimina o problema de descPendente
+// contaminando transações diferentes.
 // ══════════════════════════════════════════════════════════════════════════════
 function parseBradescoPage(items) {
+  // 1. Agrupa itens por linha Y (tolerância 3px)
   const linhasMap = new Map();
   for (const it of items) {
     if (!it.str.trim()) continue;
@@ -695,90 +697,77 @@ function parseBradescoPage(items) {
     linhasMap.get(yKey).push({ x, text: it.str.trim() });
   }
 
+  // 2. Ordena por Y decrescente (PDF.js: Y alto = topo da página)
+  const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b - a);
+
+  // 3. Agrupa linhas em BLOCOS — gap >12px = novo bloco
+  const blocos = [];
+  let blocoAtual = [];
+  let prevY = null;
+  for (const y of ysOrdenados) {
+    if (prevY !== null && (prevY - y) > 12) {
+      if (blocoAtual.length) blocos.push(blocoAtual);
+      blocoAtual = [];
+    }
+    blocoAtual.push({ y, items: linhasMap.get(y).sort((a,b) => a.x - b.x) });
+    prevY = y;
+  }
+  if (blocoAtual.length) blocos.push(blocoAtual);
+
+  // 4. Processa cada bloco como uma transação
   const RE_DATA = /^\d{2}\/\d{2}\/\d{4}$/;
-  // Aceita valor COM ou SEM sinal negativo
   const RE_VALOR = /^-?(\d{1,3}(?:\.\d{3})*,\d{2})$/;
   const resultado = [];
   let dataAtual = null;
-  let descPendente = "";
 
-  const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b - a);
+  for (const bloco of blocos) {
+    // Junta todos os itens do bloco
+    const todosItens = bloco.flatMap(l => l.items);
 
-  for (const y of ysOrdenados) {
-    const itensLinha = linhasMap.get(y).sort((a,b) => a.x - b.x);
-    const linhaTexto = itensLinha.map(i => i.text).join(" ");
-
-    if (isCabecalho(linhaTexto)) { descPendente = ""; continue; }
-    if (linhaTexto.includes("SALDO ANTERIOR") || /^Total\b/i.test(linhaTexto)) { descPendente = ""; continue; }
-    if (/^COD\.\s*LANC/i.test(linhaTexto)) { descPendente = ""; continue; }
-
-    // Extrai campos por zona X (calibrado com PDFs reais do Bradesco Celular)
-    let dataField = "", histField = "", debField = "", credField = "", saldoField = "";
-    for (const item of itensLinha) {
+    // Extrai campos por zona X
+    let dataField = "", histParts = [], debField = "", credField = "", saldoField = "";
+    for (const item of todosItens) {
       const x = item.x;
       if (x < 110) {
         if (RE_DATA.test(item.text)) dataField = item.text;
       } else if (x >= 110 && x < 300) {
-        histField += (histField ? " " : "") + item.text;
+        const t = item.text.trim();
+        if (t && !/^Ag\d{4}/i.test(t) && !/^Poup\s+Facil/i.test(t)
+            && !/^\d{10,}/.test(t) && !/^BC024HS\s*-/i.test(t)
+            && !/^REMET\./i.test(t) && !/^MUNICIPIO\s/i.test(t)
+            && !/^DES:/i.test(t) && !/^REM:/i.test(t)
+            && !/^ESPECIE$/i.test(t)
+            && !/^[A-Z][a-z]+ [A-Z][a-z]/.test(t)) { // nomes de pessoa
+          histParts.push(t);
+        }
       } else if (x >= 300 && x < 380) {
         // docto — ignorar
       } else if (x >= 380 && x < 450) {
-        // Crédito — valor positivo na coluna de crédito
         if (RE_VALOR.test(item.text)) credField = item.text;
       } else if (x >= 450 && x < 520) {
-        // Débito — valor (com ou sem "-") na coluna de débito
         if (RE_VALOR.test(item.text)) debField = item.text;
       } else if (x >= 520) {
         saldoField = item.text;
       }
     }
 
-    // Detecta data
-    if (!dataField) {
-      const firstText = itensLinha[0]?.text || "";
-      if (RE_DATA.test(firstText)) dataField = firstText;
-    }
     if (dataField) dataAtual = dataField;
 
-    // Verifica se tem débito (com ou sem "-")
+    // Tem débito?
     const mDeb = debField ? debField.match(RE_VALOR) : null;
-    const temValorMonetario = debField || credField || saldoField;
+    if (!mDeb || !dataAtual) continue;
 
-    if (mDeb && dataAtual) {
-      // v8.3 FIX: descPendente só é usado se contém texto que parece rubrica bancária
-      // Caso contrário (nome de pessoa, detalhe de transferência), descarta
-      let desc;
-      if (descPendente) {
-        const dpUpper = descPendente.toUpperCase();
-        const pareceRubrica = ["TARIFA","CESTA","PACOTE","PEND","SEGURO","MORA","IOF",
-          "ENCARGO","ANUIDADE","EMISSAO","EXTRATO","SAQUE","JUROS","CARTAO","RMC","RCC",
-          "CAPITALIZACAO","GASTO","BX.ANT","BX ANT","LIQUID","CREDITO PESSOAL","EMPRESTIMO",
-          "PARCELA","PAGTO ELETRON"].some(kw => dpUpper.includes(kw));
-        desc = pareceRubrica ? (descPendente + " " + histField).trim() : histField.trim();
-      } else {
-        desc = histField.trim();
-      }
-      descPendente = "";
-      // Limpeza de nº documento, códigos bancários e detalhes de agência
-      desc = desc.replace(/\s*\d{5,}\s*/g, " ").trim();
-      desc = desc.replace(/Ag\d{4,}\S*/gi, "").trim();
-      desc = desc.replace(/Poup\s+Facil[^$]*/gi, "").trim();
-      desc = desc.replace(/\s{2,}/g, " ").trim();
+    // Monta descrição limpa
+    let desc = histParts.join(" ").replace(/\s*\d{5,}\s*/g, " ").replace(/\s{2,}/g, " ").trim();
 
-      if (!desc || isTransfer(desc)) continue;
-      const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
-      if (val > 0.009 && val < 50000) {
-        resultado.push({ data: dataAtual, descricao: desc.slice(0,250), valor: val });
-      }
-    }
-    else if (!dataField && histField && !temValorMonetario) {
-      descPendente += (descPendente ? " " : "") + histField;
-    }
-    else if (dataField) {
-      descPendente = "";
-    }
-    else {
-      descPendente = "";
+    // Filtra cabeçalhos e transferências
+    if (!desc) continue;
+    if (isCabecalho(desc)) continue;
+    if (isTransfer(desc)) continue;
+
+    const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
+    if (val > 0.009 && val < 50000) {
+      resultado.push({ data: dataAtual, descricao: desc.slice(0,250), valor: val });
     }
   }
   return resultado;
