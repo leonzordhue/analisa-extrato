@@ -1,318 +1,1088 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+<!--
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║  LAADV — Analisador de Extratos Bancários v8.3                               ║
+║  GitHub Pages Ready · Single-file · Zero servidor · 100% local              ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  AKE — AXIOMATIC KERNEL ENGINE · UFT-1.0                                     ║
+║  @author   Paulo Esteves Fernandes Neto — DMOB/SEINFRA-AM                   ║
+║  @client   LAADV — Luís Albert Advocacia                                     ║
+║  @version  8.3.0                                                             ║
+║  @build    REV-3 — 8 categorias, ~185 termos, taxonomia jurídica TJAM                                                              ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  CORREÇÕES v8.3 (sobre v8.2):                                                ║
+║  - 8 categorias (era 5): +Cartão Consignado, +Gasto Cartão, +IOF expandido  ║
+║  - 211 keywords (era 124): taxonomia jurídica da 3ª Turma Recursal TJAM     ║
+║  - Capitalização reclassificada: Empréstimo→Seguro (produto bancário)        ║
+║  - TF-IDF expandido com exemplos de treino para todas as 8 categorias        ║
+║  - localStorage key v2 (invalida cache antigo com categorias antigas)        ║
+║  - Fontes: Profª Jhulliem, Portfólio LAADV, Treinamento Mária Lúcia         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+-->
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LAADV · Analisador de Extratos Bancários v11.2</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <style>
-    :root{--teal:#0B4A44;--teal-mid:#145E58;--gold:#C9A93E;--gray-bg:#F5F7F9;--text:#162030;--radius:12px}
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:var(--gray-bg);color:var(--text)}
-    .topbar{background:var(--teal);padding:.38rem 1.5rem;display:flex;justify-content:space-between;color:#fff;font-size:.7rem}
-    .site-header{background:var(--teal);border-bottom:3px solid var(--gold);padding:.85rem 1.5rem}
-    .brand{display:flex;align-items:center;gap:1rem}
-    .brand-logo{width:44px;height:44px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--teal);font-weight:bold}
-    .brand-name{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:700;color:#fff}
-    .hero{background:linear-gradient(135deg,var(--teal),var(--teal-mid));padding:2rem 1.5rem 3rem}
-    .hero-title{font-family:'Cormorant Garamond',serif;font-size:2.5rem;color:#fff}
-    .main-wrap{max-width:1200px;margin:0 auto;padding:2rem 1.5rem}
-    .card{background:#fff;border-radius:var(--radius);box-shadow:0 2px 18px rgba(0,0,0,0.05);margin-bottom:1.25rem}
-    .card-head{padding:1rem 1.5rem;border-bottom:1px solid #DDE3EC;background:#EBF5F4;font-weight:600;color:var(--teal)}
-    .drop-zone{border:2.5px dashed #A8D4D0;border-radius:14px;background:#EBF5F4;padding:2rem;text-align:center;cursor:pointer}
-    .btn{font-weight:600;border:none;border-radius:9px;padding:.65em 1.4em;cursor:pointer;background:#fff;border:1px solid #ccc}
-    .btn-primary{background:var(--teal);color:#fff;border:none}
-    .btn-primary:hover{background:var(--teal-mid)}
-    .result-table{width:100%;border-collapse:collapse;font-size:.77rem}
-    .result-table thead tr{background:var(--teal);color:#fff}
-    .result-table td,.result-table th{padding:.6rem 1rem;text-align:left}
-    .result-table td:last-child,.result-table th:last-child{text-align:right}
-    .tag{padding:.2em .7em;border-radius:100px;font-size:.61rem;font-weight:700;display:inline-block}
-    .tag-teal{background:#EBF5F4;color:var(--teal)}
-    .tag-red{background:#FEF2F2;color:#B02020}
-    .tag-orange{background:#FFF7ED;color:#C2410C}
-    .tag-purple{background:#F3F0FF;color:#6D28D9}
-    .tag-gold{background:#FBF5E0;color:#9E8130}
-    .log-box{background:#0a1a18;color:#7ecdc6;padding:.75rem;border-radius:8px;font-family:monospace;font-size:.7rem;max-height:200px;overflow-y:auto;margin-top:1rem}
-    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-bottom:1rem}
-    .kpi-card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:.85rem}
-    .kpi-card.hl{background:var(--teal);color:#fff}
-    .filters-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
-    input[type="month"]{padding:.3rem;border:1px solid #ccc;border-radius:6px}
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="theme-color" content="#0B4A44"/>
+<title>LAADV — Analisador de Extratos Bancários</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --teal:#0B4A44;--teal-mid:#145E58;--teal-light:#1C7A72;
+  --teal-hover:#0d5a54;--teal-bg:#EBF5F4;--teal-brd:#A8D4D0;
+  --gold:#C9A93E;--gold-light:#E8CB6E;--gold-dark:#9E8130;
+  --gold-bg:#FBF5E0;--gold-brd:#E8CB6E;
+  --white:#FFFFFF;--gray-bg:#F5F7F9;--gray-light:#EEF1F5;
+  --gray-brd:#DDE3EC;--gray-mid:#8899AA;
+  --text:#162030;--text-mid:#3D4F63;
+  --ok:#1A6B48;--ok-bg:#E8F5EE;--ok-brd:#A3D4BC;
+  --err:#B02020;--err-bg:#FEF2F2;--err-brd:#F4AAAA;
+  --warn:#B45309;--warn-bg:#FEF3C7;--warn-brd:#FCD34D;
+  --font-serif:'Cormorant Garamond',Georgia,serif;
+  --font:'DM Sans',system-ui,sans-serif;
+  --radius:12px;
+  --shadow:0 2px 18px rgba(11,74,68,.10),0 0 0 1px var(--gray-brd);
+  --shadow-lg:0 8px 40px rgba(11,74,68,.18);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:var(--font);background:var(--gray-bg);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+::selection{background:rgba(11,74,68,.15)}
+.topbar{background:var(--teal);padding:.38rem 1.5rem;display:flex;align-items:center;justify-content:space-between}
+.topbar-l{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);font-weight:500}
+.topbar-r{font-size:.62rem;font-weight:600;color:var(--gold-light);display:flex;align-items:center;gap:.5rem;letter-spacing:.06em;text-transform:uppercase}
+.topbar-dot{width:6px;height:6px;border-radius:50%;background:var(--gold-light);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.site-header{background:var(--teal);border-bottom:3px solid var(--gold);padding:.85rem 1.5rem 1rem;position:sticky;top:0;z-index:200;box-shadow:0 4px 24px rgba(11,74,68,.3)}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:1rem}
+.brand-logo{width:44px;height:44px;border-radius:8px;background:var(--gold);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand-logo svg{width:32px;height:32px}
+.brand-name{font-family:var(--font-serif);font-size:1.3rem;font-weight:700;color:var(--white);letter-spacing:.04em;line-height:1.1}
+.brand-sub{font-size:.63rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-light);margin-top:.1rem}
+.header-right{display:flex;align-items:center;gap:.75rem}
+.hdr-status{display:flex;align-items:center;gap:.4rem;font-size:.65rem;color:rgba(255,255,255,.5)}
+.hdr-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-mid);transition:.3s}
+.hdr-dot.ok{background:#6ee7b7;box-shadow:0 0 6px #6ee7b7}
+.hdr-dot.err{background:#fca5a5;box-shadow:0 0 6px #fca5a5}
+.hdr-dot.run{background:var(--gold-light);box-shadow:0 0 6px var(--gold-light);animation:pulse 1s infinite}
+.header-badge{font-size:.65rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:rgba(201,169,62,.18);border:1px solid rgba(201,169,62,.4);color:var(--gold-light);padding:.4em 1.1em;border-radius:100px}
+.hero{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-mid) 60%,var(--teal-light) 100%);padding:2.2rem 1.5rem 3rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-52deg,transparent,transparent 54px,rgba(201,169,62,.04) 54px,rgba(201,169,62,.04) 55px)}
+.hero::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(to bottom,var(--gold),rgba(201,169,62,.1))}
+.hero-inner{position:relative;z-index:1;max-width:1200px;margin:0 auto}
+.hero-eye{font-size:.63rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-light);margin-bottom:.5rem}
+.hero-title{font-family:var(--font-serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;color:var(--white);letter-spacing:-.01em;line-height:1.1;margin-bottom:.4rem}
+.hero-sub{font-size:.84rem;color:rgba(255,255,255,.55);max-width:680px;line-height:1.6}
+.hero-chips{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.hero-chip{display:inline-flex;align-items:center;gap:.3rem;font-size:.63rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.8);padding:.28em .9em;border-radius:100px}
+.hero-wave{overflow:hidden;line-height:0}
+.hero-wave svg{display:block;width:100%;fill:var(--gray-bg)}
+.main-wrap{max-width:1200px;margin:0 auto;padding:2rem 1.5rem 5rem}
+.card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:1.25rem}
+.card-head{padding:1rem 1.5rem;border-bottom:1px solid var(--gray-brd);background:linear-gradient(to right,var(--teal-bg),var(--white));display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.card-head-l{display:flex;align-items:center;gap:.7rem}
+.card-icon{width:34px;height:34px;border-radius:8px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1rem;color:#fff;flex-shrink:0}
+.card-title{font-size:.92rem;font-weight:700;color:var(--teal)}
+.card-sub{font-size:.7rem;color:var(--gray-mid);margin-top:.1rem}
+.card-body{padding:1.5rem}
+.drop-zone{border:2.5px dashed var(--teal-brd);border-radius:14px;background:var(--teal-bg);padding:2.5rem 2rem;text-align:center;cursor:pointer;transition:.2s;position:relative}
+.drop-zone:hover,.drop-zone.over{border-color:var(--teal);background:#d5ecea}
+.dz-icon{font-size:2.5rem;margin-bottom:.6rem}
+.dz-title{font-size:.95rem;font-weight:700;color:var(--teal)}
+.dz-sub{font-size:.72rem;color:var(--gray-mid);margin-top:.35rem;line-height:1.5}
+#fileInput{display:none}
+.file-list{margin-top:.8rem;display:flex;flex-direction:column;gap:.35rem}
+.file-item{display:flex;align-items:center;gap:.6rem;padding:.45rem .8rem;border-radius:8px;background:var(--gray-light);border:1px solid var(--gray-brd);font-size:.75rem}
+.file-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-size{color:var(--gray-mid);font-size:.68rem}
+.progress-wrap{margin:.8rem 0 .4rem}
+.progress-bar{height:5px;background:var(--gray-brd);border-radius:10px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(to right,var(--teal),var(--gold));width:0%;transition:width .4s}
+.status-msg{font-size:.73rem;color:var(--gray-mid);margin-top:.35rem;min-height:1.1em}
+.btn{font-family:var(--font);font-size:.82rem;font-weight:600;border:none;border-radius:9px;padding:.65em 1.4em;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;transition:all .15s}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--teal-mid);transform:translateY(-1px)}
+.btn-gold{background:var(--gold);color:var(--teal)}
+.btn-gold:hover:not(:disabled){background:var(--gold-light)}
+.btn-outline{background:transparent;color:var(--teal);border:1.5px solid var(--teal-brd)}
+.btn-outline:hover:not(:disabled){background:var(--teal-bg)}
+.btn-ghost{background:transparent;color:var(--gray-mid);border:1.5px solid var(--gray-brd)}
+.btn-ghost:hover:not(:disabled){background:var(--gray-light)}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;align-items:center}
+.log-box{background:#0a1a18;border-radius:9px;padding:.75rem 1rem;font-size:.68rem;font-family:monospace;color:#7ecdc6;max-height:200px;overflow-y:auto;margin-top:.8rem;display:none}
+.log-box .lok{color:#6ee7b7}
+.log-box .lerr{color:#fca5a5}
+.log-box .lwarn{color:#fcd34d}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.8rem;margin-bottom:1.1rem}
+.kpi-card{background:var(--white);border:1.5px solid var(--gray-brd);border-radius:9px;padding:.85rem 1rem;position:relative}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--teal-brd);border-radius:9px 9px 0 0}
+.kpi-card.hl{background:var(--teal);border-color:var(--teal)}
+.kpi-card.hl::before{background:var(--gold)}
+.kpi-label{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gray-mid);margin-bottom:.2rem}
+.kpi-card.hl .kpi-label{color:rgba(255,255,255,.5)}
+.kpi-val{font-family:var(--font-serif);font-size:1.55rem;font-weight:700;color:var(--text)}
+.kpi-card.hl .kpi-val{color:#fff}
+.kpi-sub{font-size:.62rem;color:var(--gray-mid);margin-top:.15rem}
+.kpi-card.hl .kpi-sub{color:rgba(255,255,255,.45)}
+.filters-row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;padding:.9rem 1.4rem;border-bottom:1px solid var(--gray-brd)}
+.filter-label{font-size:.72rem;color:var(--text-mid);font-weight:500}
+input[type=checkbox]{accent-color:var(--teal);width:13px;height:13px;cursor:pointer}
+input[type=month]{font-family:var(--font);font-size:.73rem;border:1.5px solid var(--gray-brd);border-radius:7px;padding:.3rem .6rem;outline:none;transition:.15s}
+input[type=month]:focus{border-color:var(--teal)}
+.sep{color:var(--gray-brd)}
+.cat-pills{display:flex;flex-wrap:wrap;gap:.3rem}
+.cat-pill{font-size:.65rem;font-weight:700;padding:.22em .8em;border-radius:100px;border:1.5px solid var(--gray-brd);background:var(--white);color:var(--gray-mid);cursor:pointer;transition:.15s}
+.cat-pill:hover{border-color:var(--teal-brd);color:var(--teal)}
+.cat-pill.active{background:var(--teal-bg);border-color:var(--teal);color:var(--teal)}
+.tbl-wrap{overflow-x:auto;max-height:560px;overflow-y:auto}
+.result-table{width:100%;border-collapse:collapse;font-size:.77rem}
+.result-table thead tr{background:var(--teal);position:sticky;top:0;z-index:1}
+.result-table thead th{padding:.7rem 1rem;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.9);text-align:left;white-space:nowrap}
+.result-table thead th.r{text-align:right}
+.result-table tbody tr{border-bottom:1px solid var(--gray-brd);transition:background .1s}
+.result-table tbody tr:nth-child(even){background:#FAFCFC}
+.result-table tbody tr:hover{background:var(--teal-bg)}
+.result-table tbody td{padding:.6rem 1rem;color:var(--text-mid);vertical-align:middle}
+.td-val{font-weight:700;color:var(--teal);text-align:right;white-space:nowrap;font-family:var(--font-serif)}
+.td-date{white-space:nowrap;font-size:.7rem;color:var(--gray-mid)}
+.table-foot{padding:.45rem 1rem;font-size:.63rem;color:var(--gray-mid);border-top:1px solid var(--gray-brd);display:flex;justify-content:space-between;align-items:center}
+.total-badge{font-weight:700;color:var(--teal);font-size:.82rem}
+.tag{display:inline-flex;align-items:center;font-size:.61rem;font-weight:700;padding:.2em .7em;border-radius:100px;white-space:nowrap}
+.tag-teal{background:var(--teal-bg);border:1px solid var(--teal-brd);color:var(--teal)}
+.tag-gold{background:var(--gold-bg);border:1px solid var(--gold-brd);color:#7c5c10}
+.tag-red{background:#FEF2F2;border:1px solid #F4AAAA;color:#B02020}
+.tag-purple{background:#F3F0FF;border:1px solid #C4B5FD;color:#6D28D9}
+.tag-orange{background:#FFF7ED;border:1px solid #FED7AA;color:#C2410C}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{padding:3rem 2rem;text-align:center}
+.empty-icon{font-size:2.4rem;opacity:.3;margin-bottom:.6rem}
+.empty-text{font-size:.84rem;color:var(--gray-mid)}
+.alert{border-radius:9px;padding:.75rem 1rem;font-size:.76rem;margin-bottom:.9rem;display:flex;gap:.6rem;align-items:flex-start}
+.alert-info{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-brd)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(11,74,68,.55);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:min(700px,95vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{background:linear-gradient(to right,var(--teal),var(--teal-mid));padding:.85rem 1.2rem;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:.88rem;font-weight:700;color:#fff}
+.modal-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:1.2rem;cursor:pointer;padding:.2rem .5rem;line-height:1}
+.modal-close:hover{color:#fff}
+.modal-body{padding:1.2rem;overflow-y:auto;flex:1}
+.modal-foot{padding:.8rem 1.2rem;border-top:1px solid var(--gray-brd);display:flex;gap:.5rem;justify-content:flex-end}
+.kw-cat-list{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
+.kw-cat-item{display:flex;align-items:center;justify-content:space-between;padding:.5rem .8rem;border-radius:7px;border:1.5px solid var(--gray-brd);background:var(--gray-light);cursor:pointer;font-size:.78rem;font-weight:600;transition:.15s}
+.kw-cat-item:hover,.kw-cat-item.selected{border-color:var(--teal);background:var(--teal-bg);color:var(--teal)}
+.kw-count{font-size:.65rem;font-weight:700;background:var(--teal-bg);border:1px solid var(--teal-brd);color:var(--teal);padding:.1em .5em;border-radius:100px}
+.kw-editor{display:none}
+.kw-editor.open{display:block}
+.kw-editor-title{font-size:.78rem;font-weight:700;color:var(--teal);margin-bottom:.5rem}
+.kw-textarea{width:100%;min-height:160px;font-family:monospace;font-size:.75rem;border:1.5px solid var(--teal-brd);border-radius:7px;padding:.6rem .8rem;background:var(--teal-bg);outline:none;resize:vertical;color:var(--text)}
+.kw-textarea:focus{border-color:var(--teal)}
+.kw-hint{font-size:.65rem;color:var(--gray-mid);margin-top:.3rem}
+.new-cat-row{display:flex;gap:.4rem;margin-top:.6rem}
+.new-cat-input{flex:1;font-family:var(--font);font-size:.78rem;border:1.5px solid var(--gray-brd);border-radius:7px;padding:.4rem .7rem;outline:none}
+.new-cat-input:focus{border-color:var(--teal)}
+.print-header{display:none;align-items:center;justify-content:space-between;padding-bottom:.75rem;border-bottom:3px solid var(--teal);margin-bottom:1rem}
+@media print{
+  @page{size:A4 landscape;margin:8mm 6mm}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  body{background:#fff!important}
+  .topbar,.site-header,.hero,.hero-wave,.card-head .btn,.btn-row,.site-footer,
+  .filters-row,.modal-overlay,.alert,.log-box{display:none!important}
+  .main-wrap{padding:0!important;max-width:100%!important}
+  .card{box-shadow:none!important;border:1px solid #ccc!important;margin-bottom:.5rem!important}
+  .card-head{background:#EBF5F4!important}
+  .result-table thead tr{background:#0B4A44!important}
+  .result-table{font-size:7.5px!important}
+  .result-table thead th{padding:.25rem .4rem!important;font-size:6.5px!important}
+  .result-table tbody td{padding:.18rem .4rem!important}
+  .tbl-wrap{max-height:none!important;overflow:visible!important}
+  .kpi-card.hl{background:#0B4A44!important}
+  .print-header{display:flex!important}
+  #resultCard{display:block!important}
+}
+.site-footer{background:var(--teal);border-top:3px solid var(--gold);padding:1rem 1.5rem}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.8rem;align-items:center}
+.footer-brand{display:flex;align-items:center;gap:.7rem}
+.footer-nome{font-family:var(--font-serif);font-size:.88rem;font-weight:700;color:#fff}
+.footer-copy{font-size:.6rem;color:rgba(255,255,255,.4);text-align:right;line-height:1.6}
+.footer-badge{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:rgba(201,169,62,.15);border:1px solid rgba(201,169,62,.3);color:var(--gold-light);padding:.25em .7em;border-radius:100px}
+@media(max-width:640px){.main-wrap{padding:1.25rem .75rem 4rem}.card-body{padding:1.1rem}}
+</style>
 </head>
 <body>
-<div class="topbar"><span>Luís Albert Advocacia · Plataforma Administrativa</span><span>v11.2 · Exclusão de PAGTO ELETRON</span></div>
-<header class="site-header">
-  <div class="brand"><div class="brand-logo">⚖️</div><div><div class="brand-name">Luís Albert Advocacia</div><div style="color:#E8CB6E;font-size:.7rem;">Analisador de Extratos · v11.2 · Sem PAGTO ELETRON</div></div></div>
-</header>
-<div class="hero">
-  <div class="hero-title">Analisador de Extratos Bancários</div>
-  <div style="color:rgba(255,255,255,0.8);">Classificação jurídica · Distinção entre Ações Matrizes e Avulsas · Precedentes TJ-AM/STJ</div>
+
+<!-- PRINT HEADER -->
+<div class="print-header">
+  <div>
+    <div style="font-family:Georgia,serif;font-size:1.2rem;font-weight:700;color:#0B4A44">Luís Albert Advocacia</div>
+    <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#C9A93E">Analisador de Extratos Bancários — Cobranças Indevidas</div>
+  </div>
+  <div id="printInfo" style="text-align:right;font-size:.65rem;color:#666;line-height:1.6"></div>
 </div>
+
+<!-- MODAL KEYWORDS -->
+<div class="modal-overlay" id="modalKw">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">⚙️ Gerenciar Termos de Classificação</span>
+      <button class="modal-close" onclick="fecharModalKw()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--gray-mid);margin-bottom:.8rem">Selecione uma categoria e edite os termos — um por linha, em maiúsculas. Salvo no navegador (localStorage).</p>
+      <div class="kw-cat-list" id="kwCatList"></div>
+      <div class="kw-editor" id="kwEditor">
+        <div class="kw-editor-title" id="kwEditorTitle"></div>
+        <textarea class="kw-textarea" id="kwTextarea" placeholder="Um termo por linha&#10;Ex: TAXA MANUTENCAO&#10;TARIFA OPERACIONAL"></textarea>
+        <div class="kw-hint">Cada linha = um termo. O sistema busca o termo em qualquer posição da descrição.</div>
+      </div>
+      <div class="new-cat-row">
+        <input class="new-cat-input" id="newCatInput" placeholder="Nova categoria..." maxlength="40">
+        <button class="btn btn-outline" style="padding:.38rem .9rem;font-size:.75rem" onclick="adicionarCategoria()">+ Categoria</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="fecharModalKw()">Cancelar</button>
+      <button class="btn btn-primary" id="kwSalvarBtn" onclick="salvarKeywords()" disabled>💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <span class="topbar-l">Luís Albert Advocacia — Plataforma Administrativa</span>
+  <span class="topbar-r"><span class="topbar-dot"></span>Analisador v8.3 · 100% Local · LGPD Safe</span>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M8 38L20 10L27 27" stroke="#0B4A44" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 10L32 38" stroke="#0B4A44" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M17 28H27" stroke="#0B4A44" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">Luís Albert Advocacia</div>
+        <div class="brand-sub">Analisador de Extratos · v8.3 · GitHub Pages</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="hdr-status">
+        <div class="hdr-dot" id="dotStatus"></div>
+        <span id="hdrTxt">Pronto</span>
+      </div>
+      <div class="header-badge">v8.3</div>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eye">// Bradesco · Itaú · BB · CEF · Santander · OCR · Repetição de Indébito</div>
+    <div class="hero-title">Analisador de Extratos<br>Bancários — v8.3</div>
+    <div class="hero-sub">Motor JavaScript local — zero servidor, zero API, zero instalação. Funciona diretamente no navegador. Os extratos nunca saem da sua máquina.</div>
+    <div class="hero-chips">
+      <span class="hero-chip">✓ GitHub Pages</span>
+      <span class="hero-chip">✓ Sem Servidor</span>
+      <span class="hero-chip">✓ 100% Local</span>
+      <span class="hero-chip">✓ LGPD Safe</span>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 40" preserveAspectRatio="none">
+      <path d="M0,30 C360,0 1080,40 1440,20 L1440,40 L0,40 Z"/>
+    </svg>
+  </div>
+</div>
+
+<!-- MAIN -->
 <div class="main-wrap">
   <div class="card">
-    <div class="card-head">📄 Carregar Extratos (PDF)</div>
+    <div class="card-head">
+      <div class="card-head-l">
+        <div class="card-icon">📄</div>
+        <div>
+          <div class="card-title">Carregamento de Extratos</div>
+          <div class="card-sub">PDF digital ou escaneado · Múltiplos arquivos simultâneos · Detecção automática de banco</div>
+        </div>
+      </div>
+    </div>
     <div class="card-body">
+      <div class="alert alert-info">ℹ️ <span>Processamento 100% no seu navegador — nenhum dado é enviado para servidores externos.</span></div>
+      <!-- FIX v8.3: botão com stopPropagation para evitar double fileInput.click() -->
       <div class="drop-zone" id="dropZone">
-        <div style="font-size:2rem;margin-bottom:.5rem;">📂</div>
-        <div>Arraste PDFs aqui ou clique para selecionar</div>
-        <button class="btn btn-primary" id="btnSelectFiles" style="margin-top:1rem;">Selecionar arquivos</button>
+        <div class="dz-icon">📂</div>
+        <div class="dz-title">Arraste os extratos aqui ou clique para selecionar</div>
+        <button type="button" class="btn btn-primary" style="margin:.6rem 0" id="btnSelectFiles">📂 Selecionar PDFs</button>
+        <div class="dz-sub">Bradesco · Itaú · BB · CEF · Santander<br>Múltiplos arquivos e meses simultaneamente</div>
       </div>
-      <input type="file" id="fileInput" multiple accept=".pdf" style="display:none;">
-      <div id="fileList" style="margin-top:1rem;"></div>
-      <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <input type="file" id="fileInput" multiple accept=".pdf">
+      <div class="file-list" id="fileList"></div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
+        <div class="status-msg" id="statusMsg"></div>
+      </div>
+      <div class="btn-row">
         <button class="btn btn-primary" id="btnAnalisar">🔍 Analisar</button>
-        <button class="btn" id="btnLimpar">🗑 Limpar</button>
-        <button class="btn" id="btnXLSX" disabled>📊 XLSX</button>
-        <button class="btn" id="btnCSV" disabled>📄 CSV</button>
-        <button class="btn" id="btnPDF" disabled>🖨️ PDF</button>
+        <button class="btn btn-ghost" id="btnLimpar">🗑 Limpar</button>
+        <button class="btn btn-outline" id="btnXLSX" disabled>📊 XLSX</button>
+        <button class="btn btn-outline" id="btnCSV" disabled>📄 CSV</button>
+        <button class="btn btn-outline" id="btnPDF" disabled onclick="exportarPDF()">🖨 PDF</button>
+        <button class="btn btn-ghost" onclick="abrirModalKw()" style="margin-left:auto">⚙️ Keywords</button>
       </div>
-      <div id="logBox" class="log-box" style="display:none;"></div>
+      <div class="log-box" id="logBox"></div>
     </div>
   </div>
-  <div id="resultCard" style="display:none;">
-    <div class="card"><div class="card-head">💰 Resumo Financeiro</div><div class="card-body"><div class="kpi-grid" id="kpiGrid"></div></div></div>
+
+  <div id="resultCard" style="display:none">
     <div class="card">
-      <div class="card-head">📋 Lançamentos Identificados</div>
+      <div class="card-head">
+        <div class="card-head-l">
+          <div class="card-icon">💰</div>
+          <div><div class="card-title">Resumo Financeiro</div></div>
+        </div>
+      </div>
       <div class="card-body">
-        <div class="filters-row">
-          <label><input type="checkbox" id="chkMes"> Agrupar por mês</label>
-          <input type="month" id="dtStart" placeholder="De"><input type="month" id="dtEnd" placeholder="Até">
-          <button class="btn" id="btnFiltrar">Filtrar</button>
-          <span style="margin-left:auto;">Total: <strong id="totalFiltrado">R$ 0,00</strong></span>
+        <div class="kpi-grid" id="kpiGrid"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-head-l">
+          <div class="card-icon">📋</div>
+          <div><div class="card-title">Lançamentos Identificados</div></div>
         </div>
-        <div style="overflow-x:auto;">
-          <table class="result-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor (R$)</th><th>Categoria</th><th>Arquivo</th></tr></thead><tbody id="tblBody"></tbody></table>
-        </div>
+      </div>
+      <div class="filters-row">
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.73rem">
+          <input type="checkbox" id="chkMes"> Agrupar por mês
+        </label>
+        <span class="sep">|</span>
+        <span class="filter-label">🏷️</span>
+        <div class="cat-pills" id="catPills"></div>
+        <span class="sep">|</span>
+        <span class="filter-label">📆</span>
+        <input type="month" id="dtStart" title="De">
+        <span style="font-size:.72rem;color:var(--gray-mid)">até</span>
+        <input type="month" id="dtEnd" title="Até">
+        <button class="btn btn-outline" style="padding:.28rem .8rem;font-size:.7rem" id="btnFiltrar">Filtrar</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Descrição</th>
+              <th class="r">Valor (R$)</th>
+              <th>Categoria</th>
+              <th>Arquivo</th>
+            </tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <span id="infoCount"></span>
+        <span class="total-badge" id="tagTotal"></span>
       </div>
     </div>
   </div>
 </div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="brand-logo" style="width:28px;height:28px;border-radius:5px">
+        <svg viewBox="0 0 48 48" fill="none" style="width:20px;height:20px">
+          <path d="M8 38L20 10L27 27" stroke="#0B4A44" stroke-width="4.5"/>
+          <path d="M20 10L32 38" stroke="#0B4A44" stroke-width="4.5"/>
+          <path d="M17 28H27" stroke="#0B4A44" stroke-width="3.5"/>
+        </svg>
+      </div>
+      <div class="footer-nome">Luís Albert Advocacia</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.6rem">
+      <span class="footer-badge">v8.3 · GitHub Pages</span>
+      <div class="footer-copy">PDF.js · SheetJS · Tesseract.js · Manaus – AM</div>
+    </div>
+  </div>
+</footer>
+
 <script>
-(function(){
-  "use strict";
-  // ======================== TAXONOMIA JURÍDICA v11.2 ========================
-  const KEYWORDS = {
-    "🎯 Ação Matriz": {
-      "Cartão Consignado (RMC/RCC)": ["RMC", "RCC", "RESERVA DE MARGEM", "RESERVA DE CARTAO"],
-      "Refinanciamento (BX ANT.FINAN)": ["BX ANT.FINAN", "BX.ANT.FINANC/EMP", "BAIXA ANTECIPADA"],
-      "Gasto de Cartão não reconhecido": ["GASTOS CARTAO DE CREDITO", "GASTO CARTAO CREDITO"]
-    },
-    "📋 Ação Avulsa": {
-      "Tarifa Indevida": ["CESTA", "PACOTE DE SERVICOS", "TARIFA MENSAL", "ANUIDADE", "AD DEPOSITANTE", "SAQUE TERMINAL", "EMISSAO EXTRATO", "EXTRATO MES"],
-      "Mora / Juros Abusivos": ["MORA", "ENCARGOS", "JUROS", "IOF"],
-      "Seguro (Venda Casada)": ["SEGURO PRESTAMISTA", "VIDA E PREVIDENCIA", "CARTAO PROTEGIDO", "BOLSA SEGURA", "SEGURO DE ACIDENTES PESSOAIS", "PROTECAO FINANCEIRA"]
-    },
-    "💰 Parcela Empréstimo": ["PARCELA CREDITO PESSOAL", "EMPRESTIMO PESSOAL", "EASYCOB", "CP ELECTRO", "LIQUID. CONTRATO"]
-  };
+"use strict";
 
-  // Lista de exclusão explícita (termos que devem ser ignorados)
-  const EXCLUSAO_EXPLICITA = ["PAGTO ELETRON COBRANCA"];
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║  AKE — AXIOMATIC KERNEL ENGINE · UFT-1.0                                    ║
+// ║  LAADV — Analisador de Extratos Bancários v8.3                              ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
 
-  function classificar(desc) {
-    const upper = desc.toUpperCase();
-    // Exclusões explícitas (termos removidos a pedido)
-    if (EXCLUSAO_EXPLICITA.some(termo => upper.includes(termo))) return null;
-    // Financeiras externas
-    if (["CREFISA","PORTOCRED","DACASA"].some(x => upper.includes(x))) return null;
-    
-    for (let mainCat in KEYWORDS) {
-      if (mainCat === "💰 Parcela Empréstimo") {
-        if (KEYWORDS[mainCat].some(t => upper.includes(t))) return mainCat;
-      } else {
-        for (let subCat in KEYWORDS[mainCat]) {
-          const termos = KEYWORDS[mainCat][subCat];
-          if (termos.some(t => upper.includes(t))) return `${mainCat}: ${subCat}`;
-        }
+const AKE_BUILD_LOG = Object.freeze([
+  {build:"8.0.0",data:"2026-04-10",tipo:"GENESIS",descricao:"Port completo Python→JS"},
+  {build:"8.1.0",data:"2026-04-10",tipo:"REV",descricao:"Keywords 112→124, anti-FP, longest-first"},
+  {build:"8.2.0",data:"2026-04-13",tipo:"FIX",descricao:"fileInput double-click fix, parseBradesco zonas X calibradas, descPendente fix"},
+  {build:"8.3.0",data:"2026-04-14",tipo:"REV",
+   descricao:"Taxonomia jurídica completa — 8 categorias, 211 termos. Fontes: Profª Jhulliem (3ª Turma Recursal TJAM), Portfólio Rubricas LAADV, Treinamento Mária Lúcia. Novas categorias: Cartão Consignado (RMC/RCC), Gasto Cartão. Capitalização reclassificada para Seguro. TF-IDF expandido com exemplos de treino para todas as 8 categorias.",
+  },
+]);
+
+// ── L1 — LIBRARY: Keywords v8.3 ────────────────────────────────────────────
+// @source Profª Jhulliem (3ª Turma Recursal TJAM) + Portfólio Rubricas LAADV
+//         + Treinamento Rubricas (Maria Lucia Grana) — ~185 termos, 8 categorias
+// @axiom A11: categorias alinhadas com taxonomia jurídica real do TJAM
+//   - "Cartão Consignado" separado (RMC/RCC — endividamento perpétuo)
+//   - "Gasto Cartão" separado (débito automático de fatura — contexto jurídico próprio)
+//   - "Capitalização" movida para Seguro (produto bancário, não empréstimo)
+const EXCLUSOES = ["CREFISA","PORTOCRED","DACASA"];
+const KW_STORAGE_KEY = "laadv_keywords_v2";  // v2: invalida cache v1 com categorias antigas
+
+const KW_DEFAULT = {
+  // ── IOF ─────────────────────────────────────────────────────────────────
+  "IOF": [
+    "IMP. OP. FINANCEIRAS",
+    "IOF OPERACAO","IOF CREDITO","IOF EMPRESTIMO","IOF LIMITE",
+    "IOF",
+  ],
+
+  // ── CARTÃO CONSIGNADO (NOVA — Tema central da 3ª Turma Recursal) ────────
+  // Endividamento perpétuo: RMC/RCC com formato 01/00 ou 00/00 = sem amortização
+  // Base: Lei 10.820/2003, CDC Art. 6º e 39, Res. CMN 3.517/2007
+  "Cartão Consignado": [
+    "RESERVA DE MARGEM CONSIGNAVEL",
+    "RESERVA MARGEM CONSIGNAVEL",
+    "RESERVA DE CARTAO CONSIGNADO",
+    "RESERVA CARTAO CONSIGNADO",
+    "CONSIGNACAO CARTAO CREDITO",
+    "CONSIGNACAO CARTAO",
+    "DESCONTO CONSIGNADO",
+    "RMC","RCC",
+  ],
+
+  // ── GASTO CARTÃO (NOVA — Apelação Cível 00675713620258041000) ──────────
+  // Débito automático de fatura na CC. Contestável quando: valores fixos sem uso,
+  // anuidade de cartão não ativado, função crédito nunca utilizada.
+  // Atenção: tolerância prolongada pode configurar aceitação tácita (3ª Turma)
+  "Gasto Cartão": [
+    "GASTOS CARTAO DE CREDITO",
+    "GASTO CARTAO CREDITO",
+    "GASTO C CARTAO",
+    "GASTO C CREDITO",
+    "GASTO CARTAO",
+    "CARTAO CREDITO ANUIDADE",
+    "ANUIDADE DIFERENCIADA",
+    "ANUIDADE CARTAO",
+  ],
+
+  // ── PARCELA EMPRÉSTIMO ──────────────────────────────────────────────────
+  "Parcela Empréstimo": [
+    "PAGTO ELETRON COBRANCA (ACE SEGURADORA S/A)","PAGTO ELETRON COBRANCA (CENTRO DE ASSISTENCIA)",
+    "PAGTO ELETRON COBRANCA (DENTAL SAUDE)","PAGTO ELETRON COBRANCA (BRADES RESI)",
+    "PAGTO ELETRON COBRANCA (VIDA PRE)","PAGTO ELETRON COBRANCA (EAGLE)",
+    "PAGTO ELETRON COBRANCA (PSERV)","PAGTO ELETRON COBRANCA",
+    "PARCELA CREDITO PESSOAL","PARCELA OPER DE CREDITO","PARCELA CONSIGNADO",
+    "PARC CRED PESS","PRESTACAO FINANCIAMENTO","AMORTIZACAO EMPRESTIMO",
+    "REORGANIZACAO FINANCEIRA","AGIPLAN FINANCEIRA SA CFI",
+    "RECEBIMENTO FORNECEDOR","LANCAMENTO A DEBITO",
+    "BX.ANT.FINANC/EMP","BX.ANT.FIN/EMP","BX ANTECIP FINANC","BX ANT.FINAN",
+    "OPERACOES VENCIDAS","DIVIDA EM ATRASO",
+    "SUDACRED SUDA","JBCRED SOCIEDADE","CREDITO PESSOAL","EMPRESTIMO PESSOAL",
+    "BV FINANCEIRA","LIQUID. CONTRATO","EASYCOB","CP ELECTRO","CP CRED",
+  ],
+
+  // ── MORA/JUROS ──────────────────────────────────────────────────────────
+  // Inclui: cheque especial, adiantamento a depositante, encargos de limite
+  // IRDR Tema 7 TJAM: encargos do cheque especial (IOF etc) suspensos,
+  // mas cheque especial não contratado pode ser julgado normalmente
+  "Mora/Juros": [
+    "MORA OPERAÇÃO DE CRÉDITO","MORA OPERACAO DE CREDITO",
+    "ENCARGOS LIMITE DE CREDITO","ENCARGOS LIMITE DE CRED","ENC LIMITE DE CREDITO",
+    "ENCARGOS DESCOBERTO CC","ENCARGOS EXCESSO LIMITE","ENCARGOS DEBITO AUTOMATICO",
+    "ENCARGO SALDO VINCULADO","MORA CARTAO DE CREDITO","MORA CONTA DE TELEFONE",
+    "MORA VIDA E PREVIDENCIA","MORA CREDITO PESSOAL","JUROS SALDO DEVEDOR",
+    "JUROS CHEQUE ESPECIAL","MORA ENC DESCOBERTO C.C","MORA DE OPERACAO",
+    "MORA CRED PESS","MORA ENCARGOS","MORA CELULAR","MORA CREDITO",
+    "ADIANTAMENTO A DEPOSITANTE","ADIANTAMENTO DEPOSITANTE",
+    "ADIANT.DEPOSITANTE","AD DEPOSITANTE","AD.DEPOSITANTE",
+    "JUROS ROTATIVOS","CONTA DE TELEFONE",
+    "ENCARGOS","JUROS LIMITE","JUROS MORA","MORA",
+  ],
+
+  // ── TARIFA BANCÁRIA ─────────────────────────────────────────────────────
+  // Reguladas pelo BACEN (Res. 3.919/2010). Não exigem anuência expressa —
+  // decorrem do uso. Contestáveis se excederam cota gratuita.
+  // ATENÇÃO: IRDR Tema 8 TJAM suspende tarifas + dano moral
+  "Tarifa Bancária": [
+    // cestas — mais específicas primeiro (longest-first)
+    "CESTA APLICACAO INVESTIMENTOS","CESTA FACIL ECONOMICA","CESTA BENEFICIARIO 1",
+    "CESTA FACIL MASTER","CESTA PRIME CLASSICA","CESTA CLASSIC MAIS",
+    "CESTA FACIL SUPER","CESTA FACIL MAIS","CESTA EXPRESSO 4 - R",
+    "CESTA EXCLUS. MAX","CESTA EXCLUSIVE 1","CESTA UNIVERSITARIA",
+    "CESTA BRADESCO EXPRE","CESTA B.EXPRESSO5","CESTA B.EXPRESSO4","CESTA B.EXPRESSO3",
+    "CESTA B.EXPRESSO2","CESTA B.EXPRESSO1","CESTA POUPANCA 1","CESTA BENEFIC 1",
+    "CESTA RELACIONAM","CESTA SERVICOS","CESTA CELULAR",
+    "CESTA FACIL","CESTA EXCLUSIVE","CESTA B.EXPRESSO",
+    "CESTA CLASSIC","CESTA",
+    // tarifas avulsas
+    "EMISSÃO EXTRATOS UNIFICADO","PADRONIZADO PRIORITARIOS II","PADRONIZADO PRIORITARIOS I",
+    "TARIFA BANCARIA (SAQUEPESSOAL)","BX CESTA DE SERVICOS",
+    "REGULARIZACAO LANCAMENTO","REGULARIZACAO MANUAL","TARIFA EMISSAO EXTRATO",
+    "SERVICO CARTAO PROTEGIDO","TAR 2 VIA CARTAO DEBITO","APLICACAO INVESTIMENTOS",
+    "PEND.TARIFAS BANCARIA","TAR ADIANT.DEPOSITANTE","TAR DEMONSTR CONSOLIDADO",
+    "PACOTE SERVICO PADRAO","PACOTE SERVICO PADRO","PACOTE DE SERVICOS",
+    "SERVICOS PRIORITARIOS","PACOTE DIGITAL",
+    "EMISSAO EXTRATO","EMISSAO EXTRATO",
+    "EXTRATOmovimento(E)","2 VIA CARTAO DEBITO","TARIFA BANCARIA","CLUBE DE BENEFICIOS",
+    "APLICACAO AUTOMATICA","EXTRATOmes(E)","APLICACAO CDB",
+    "DOC/TED INTERNET","EXTRATO UNIFICADO","APLIC.INVEST FACIL","2VIA DE EXTRATO",
+    "SAQUECORRESPONDENTE","EXTRATO MÊS","SAQUETERMINAL","VR.PARCIAL","SAQUEPESSOAL",
+    "SEGUNDA VIA","CENASP","COBRANCA DIVERSA",
+    "TARIFA MENSALIDADE PACOTE SERVICOS","TARIFA MSG - MES ANTERIOR",
+    "TARIFA PACOTE DE SERVICOS","TARIFA MENSALIDADE","TARIFA PACOTE","TARIFA MSG",
+    "TARIFA CELULAR","TARIFA MENSAL","TARIFA CADASTRO","TAR DE CADASTRO","TAR CADASTRO",
+    "DB T CESTA","SAQUETERMI","SAQUECORRE","SAQUEPESSO",
+    "ANUIDADE",
+  ],
+
+  // ── SEGURO / CAPITALIZAÇÃO ──────────────────────────────────────────────
+  // Produtos que exigem contrato separado e autorização expressa.
+  // Tema 972 STJ: venda casada vedada em CDB/empréstimo.
+  // 3ª Turma TJAM: seguro em CDB = presunção de venda casada,
+  // restituição simples + dano moral in re ipsa R$ 3.000,00
+  "Seguro": [
+    "BINCLUB SERVICOS DE ADMINISTRACAO","BRADESCO VIDA E PREVIDENCIA S/A",
+    "BRADESCO VIDA E PREVIDENCIA","BRADESCO VIDA PREV-SEG. VIDA",
+    "BRADESCO SEG-RESID/OUTROS","SEBRASEG CLUBE DE BENEFICIOS",
+    "SUDAMERICA CLUBE DE SERVICOS","ASPECIR - UNIAO SEGURADORA",
+    "AQUISICAO/DEVOLUCAO-SEG","SEGURO PROTECAO FINANCEIRA",
+    "MBM PREVIDENCIA COMPLEMENTAR","SABEMI SEGURADO./RS-063*",
+    "SEGURO CART DEB BRADESCO","SEGURO MAIS PROTECAO",
+    "SEGURO ACIDENTES PESSOAIS","SEGURO ACIDENTE PESSOAL",
+    "TITULO DE CAPITALIZACAO","TITULO CAPITALIZACAO","TIT CAP",
+    "ASSISTENCIA FUNERAL","ASSISTENCIA RESIDENCIAL",
+    "CARTAO PROTEGIDO","BOLSA SEGURA","BOLSA SEGURO",
+    "VIDA E PREVIDENCIA","SEGURO PRESTAMISTA",
+    "SABEMI SEGURADO","LIBERTY SEGUROS","PREVIPLAN CLUBE",
+    "VIZA PREV SEGUROS","PREMIO SEGURO","ODONTOPREV S/A",
+    "SEGURO CARTAO","SEGURO CARD","SEGURO VIDA",
+    "BRADESCO VIDA","CAPITALIZACAO",
+    "ASPECIR","PREVISUL",
+  ],
+};
+
+let KEYWORDS = (() => {
+  try { const s = localStorage.getItem(KW_STORAGE_KEY); return s ? JSON.parse(s) : JSON.parse(JSON.stringify(KW_DEFAULT)); }
+  catch { return JSON.parse(JSON.stringify(KW_DEFAULT)); }
+})();
+function salvarKwStorage() { localStorage.setItem(KW_STORAGE_KEY, JSON.stringify(KEYWORDS)); }
+
+// ── Classificação ─────────────────────────────────────────────────────────────
+const ANTI_FP_PREFIXOS = [
+  /^RESG\.\s+CESTA/i, /^APLICAC\.\s+CESTA/i, /^CREDITO\s+CESTA/i,
+  /^PAGTO\s+CESTA/i, /^ESTORNO\s/i, /^DEVOLUCAO\s/i, /^RESSARCIMENTO\s/i, /^REEMBOLSO\s/i,
+];
+
+function classificar(desc) {
+  const d = desc.toUpperCase();
+  if (EXCLUSOES.some(ex => d.includes(ex))) return "Outros Descontos";
+  if (ANTI_FP_PREFIXOS.some(re => re.test(desc))) return "Outros Descontos";
+  for (const [cat, kws] of Object.entries(KEYWORDS)) {
+    if (kws.some(kw => d.includes(kw.toUpperCase()))) return cat;
+  }
+  return "Outros Descontos";
+}
+
+// TF-IDF semântico (fallback)
+const PREFIXOS_EXCLUIR = [
+  "PIX TRANSF","PIX QRS","PIX ENVIADO","ENVIO PIX","TED ","DOC ",
+  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","CRED INSS","CRED PIX",
+  "CREDITO SALARIO","SALARIO","RSCSS","RSHOP","COMPRA ","SAQUE ATM",
+  "SAQUE B24H","SAQUE LOT","DEB IRPF","CREFISA","PORTOCRED","DACASA",
+];
+const EXEMPLOS_TREINO = {
+  "Parcela Empréstimo":["PARCELA CREDITO PESSOAL","PARC EMPRESTIMO","PRESTACAO FINANCIAMENTO","PARCELA CONTRATO","AMORTIZACAO EMPRESTIMO","PARCELA CONSIGNADO","PAGTO FINANCEIRA","DEDUCAO CONSIGNADO","DESCONTO FOLHA EMPRESTIMO"],
+  "Cartão Consignado":["RESERVA MARGEM CONSIGNAVEL","CONSIGNACAO CARTAO","RMC CARTAO","RCC CARTAO","CARTAO CONSIGNADO","ENDIVIDAMENTO PERPETUO","DESCONTO CONSIGNADO CARTAO"],
+  "Gasto Cartão":["GASTO CARTAO CREDITO","DEBITO FATURA CARTAO","ANUIDADE CARTAO CREDITO","ANUIDADE DIFERENCIADA CARTAO","FATURA CARTAO DEBITO AUTOMATICO"],
+  "Mora/Juros":["JUROS ATRASO","MORA PAGAMENTO","JUROS ESPECIAL","ENCARGOS ATRASO","MULTA ATRASO","JUROS ROTATIVO","MORA CONTRATO","ENCARGO FINANCEIRO","TAXA JUROS","MORA FINANCIAMENTO","JURO MORA","ENCARGO MENSAL","ADIANTAMENTO DEPOSITANTE","CHEQUE ESPECIAL"],
+  "Tarifa Bancária":["TAXA MANUTENCAO CONTA","TARIFA SERVICO","MENSALIDADE CONTA","TARIFA PACOTE SERVICOS","CESTA BASICA BANCO","TAXA TRANSFERENCIA","TARIFA TED","TARIFA BOLETO","MANUTENCAO CONTA CORRENTE","TAXA CONTA","PACOTE SERVICOS BANCARIOS","COBRANCA SERVICO","TAXA ADMINISTRACAO","TARIFA CELULAR","TARIFA CADASTRO"],
+  "Seguro":["PREMIO SEGURO","SEGURO PRESTAMISTA","SEGURO VIDA BANCO","COBERTURA SEGURO","APOLICE SEGURO","SEGURO CARTAO CREDITO","PROTECAO SEGURO","COBRANCA SEGURO","SEGURO FINANCIAMENTO","CAPITALIZACAO","TITULO CAPITALIZACAO","CARTAO PROTEGIDO","BOLSA SEGURA","ASSISTENCIA FUNERAL"],
+  "IOF":["IOF OPERACAO","IMPOSTO FINANCEIRO","IOF CREDITO","IOF EMPRESTIMO","IOF LIMITE"],
+};
+function ngrams(s,n){const r=[];for(let i=0;i<=s.length-n;i++)r.push(s.slice(i,i+n));return r;}
+function tfidfSim(a,b){const sa=new Set(ngrams(a.toUpperCase(),2)),sb=new Set(ngrams(b.toUpperCase(),2));let inter=0;sa.forEach(g=>{if(sb.has(g))inter++;});return inter/Math.sqrt(sa.size*sb.size||1);}
+let _modeloTreino=null;
+function _buildModelo(){const docs=[];for(const[cat,exs]of Object.entries(EXEMPLOS_TREINO))exs.forEach(e=>docs.push({cat,text:e}));for(const[cat,kws]of Object.entries(KEYWORDS))kws.forEach(k=>docs.push({cat,text:k}));return docs;}
+function classificarSemantico(desc){if(!_modeloTreino)_modeloTreino=_buildModelo();const d=desc.toUpperCase();if(PREFIXOS_EXCLUIR.some(p=>d.startsWith(p)||d.includes(p)))return null;let melhorCat=null,melhorSim=0.30;for(const doc of _modeloTreino){const sim=tfidfSim(d,doc.text);if(sim>melhorSim){melhorSim=sim;melhorCat=doc.cat;}}return melhorCat;}
+function classificarCompleto(desc){const c1=classificar(desc);if(c1!=="Outros Descontos")return c1;return classificarSemantico(desc)||"Outros Descontos";}
+
+// ── Detecção de banco ─────────────────────────────────────────────────────────
+function detectarBanco(texto){
+  const t=texto.toLowerCase();
+  if(t.includes("bradesco"))return "bradesco";
+  if(t.includes("período de visualização")&&t.includes("saldo do dia"))return "itau";
+  if(t.includes("extrato de conta corrente")&&t.includes("dia lote documento"))return "bb";
+  if(t.includes("extrato por período")&&t.includes("nr. doc"))return "cef";
+  if(t.includes("extrato consolidado inteligente")||t.includes("santander"))return "santander";
+  if(t.includes("itau")||t.includes("itaú"))return "itau";
+  if(t.includes("banco do brasil"))return "bb";
+  if(t.includes("caixa econômica")||t.includes("caixa economica"))return "cef";
+  return "generico";
+}
+
+// ── Filtro de transferências ──────────────────────────────────────────────────
+const TRANSFER_PREFIXOS_RE = [
+  /^PIX /i,/^ENVIO PIX/i,/^TED /i,/^DOC /i,
+  /^TRANSFERENCIA /i,/^TRANSF /i,
+  /^CRED INSS/i,/^CRED PIX/i,/^CRED SALARIO/i,
+  /^CREDITO SALARIO/i,/^CREDITO INSS/i,
+  /^SALARIO /i,/^SALARIO,/i,/^REMUNERACAO /i,
+  /^DEPOSITO /i,/^DEP /i,/^DEB IRPF/i,
+  /^RSCSS /i,/^RSHOP /i,
+  /^SAQUE /i,  // "SAQUE " com espaço = transação normal (ATM, BANCO24HORAS)
+];
+const TRANSFER_CONTAINS = [
+  "SALDO DO DIA","SALDO DIA","SALDO ANTERIOR","SALDO EM ",
+  "COMPRA CARTAO","COMPRA DEBITO","CRED INSS","DEB IRPF",
+  "SAQUE BANCO24HORAS","SAQUE BANCO24H","SAQUE B24H",  // v8.3: adicionados
+];
+function isTransfer(desc){
+  const d=desc.trim(),du=d.toUpperCase();
+  if(TRANSFER_PREFIXOS_RE.some(re=>re.test(d)))return true;
+  if(TRANSFER_CONTAINS.some(kw=>du.includes(kw)))return true;
+  return false;
+}
+
+// ── Filtro de cabeçalhos de página Bradesco ────────────────────────────────────
+// v8.3: impede que linhas de cabeçalho/rodapé sejam parseadas como transação
+const CABECALHO_PATTERNS = [
+  /^Bradesco\s+Celular/i, /^Data:\s*\d{2}\/\d{2}/i, /^Nome:\s/i,
+  /^Extrato\s+de:/i, /Folha:\s*\d+\/\d+/i, /^Data\s+Hist[oó]rico\s+Docto/i,
+  /Movimenta[çc][oõ]es\s+entre/i, /Ag[eê]ncia:/i, /Conta:/i,
+  /^Total$/i, /^Extrato\s+Inexistente/i, /^\s*$/,
+];
+function isCabecalho(texto) {
+  return CABECALHO_PATTERNS.some(re => re.test(texto.trim()));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PARSER BRADESCO v8.3 — REESCRITO com zonas X calibradas do PDF real
+// Coordenadas X do extrato Bradesco Celular (PDF.js transform[4]):
+//   Data:     0–100
+//   Histórico: 100–280
+//   Docto:    280–370
+//   Crédito:  370–440
+//   Débito:   440–520 (valores com sinal -)
+//   Saldo:    520+
+// ══════════════════════════════════════════════════════════════════════════════
+function parseBradescoPage(items) {
+  // Agrupa por linha (Y similar — tolerância de 3 unidades)
+  const linhasMap = new Map();
+  for (const it of items) {
+    if (!it.str.trim()) continue;
+    const y = Math.round(it.transform[5]);
+    const x = Math.round(it.transform[4]);
+    // Agrupa por Y com tolerância
+    let yKey = y;
+    for (const existingY of linhasMap.keys()) {
+      if (Math.abs(existingY - y) <= 3) { yKey = existingY; break; }
+    }
+    if (!linhasMap.has(yKey)) linhasMap.set(yKey, []);
+    linhasMap.get(yKey).push({ x, text: it.str.trim() });
+  }
+
+  const RE_DATA = /^\d{2}\/\d{2}\/\d{4}$/;
+  const RE_DEB  = /^-(\d{1,3}(?:\.\d{3})*,\d{2})$/;
+  const resultado = [];
+  let dataAtual = null;
+  let descPendente = "";  // v8.3: acumula descrição multilinha
+
+  // Ordena linhas por Y decrescente (PDF.js: topo = maior Y)
+  const ysOrdenados = [...linhasMap.keys()].sort((a,b) => b - a);
+
+  for (const y of ysOrdenados) {
+    const itensLinha = linhasMap.get(y).sort((a,b) => a.x - b.x);
+
+    // Extrai campos por zona X
+    let dataField = "", histField = "", debField = "", saldoField = "";
+    for (const item of itensLinha) {
+      if (item.x < 100) {
+        if (RE_DATA.test(item.text)) dataField = item.text;
+      } else if (item.x >= 100 && item.x < 280) {
+        histField += (histField ? " " : "") + item.text;
+      } else if (item.x >= 440 && item.x < 520) {
+        debField = item.text;
+      } else if (item.x >= 520) {
+        saldoField = item.text;
+      }
+      // 280-370 = docto (ignorar — não queremos nº doc na descrição)
+      // 370-440 = crédito (ignorar — só débitos nos interessam)
+    }
+
+    // Atualiza data corrente
+    if (dataField) dataAtual = dataField;
+
+    // Filtra cabeçalhos
+    const linhaTexto = itensLinha.map(i => i.text).join(" ");
+    if (isCabecalho(linhaTexto)) { descPendente = ""; continue; }
+    if (linhaTexto.includes("SALDO ANTERIOR")) { descPendente = ""; continue; }
+
+    // Detecta se a linha tem algum valor monetário (crédito ou saldo)
+    let credField = "";
+    for (const item of itensLinha) {
+      if (item.x >= 370 && item.x < 440) credField = item.text;
+    }
+    const temValorMonetario = debField || credField || saldoField;
+
+    // Se tem débito → registra transação
+    const mDeb = debField.match(RE_DEB);
+    if (mDeb && dataAtual) {
+      // v8.3.1 FIX: só usa descPendente se veio de linha SEM data
+      // (linhas com data são transações independentes — INSS, SALARIO etc)
+      let desc = descPendente ? (descPendente + " " + histField).trim() : histField.trim();
+      descPendente = "";
+
+      // Limpeza de nº documento que grudou
+      desc = desc.replace(/\s*\d{5,}\s*/g, " ").trim();
+
+      if (!desc || isTransfer(desc)) continue;
+      const val = parseFloat(mDeb[1].replace(/\./g,"").replace(",","."));
+      if (val > 0.009 && val < 50000) {
+        resultado.push({ data: dataAtual, descricao: desc.slice(0,250), valor: val });
       }
     }
-    return null;
-  }
-
-  function limparCategoriaParaPDF(cat) {
-    return cat.replace(/[^\x00-\x7F]/g, '').trim().replace(/^:\s*/, '');
-  }
-
-  // ======================== LIMPEZA CIRÚRGICA DE DESCRIÇÃO ========================
-  function limparDescricao(raw) {
-    let limpa = raw;
-    limpa = limpa.replace(/\b[Aa][Gg]\s*\d+\s*[Mm][Aa][Qq]\s*\d+\s*[Ss][Ee][Qq]\s*\d+\b/g, '');
-    limpa = limpa.replace(/\b(?:Ag|Maq|Seq)\d+\b/gi, '');
-    limpa = limpa.replace(/\b(?:BCO24HS|BDN\/24HS|BC024HS|_BDN\/24HS_[A-Z]+)\b/gi, '');
-    limpa = limpa.replace(/\b\d{4,}\b/g, '');
-    limpa = limpa.replace(/\b(?:DANIELE DA SILVA OLIVE|SIDNEI DOS SANTOS FLORES|ELISANGELA RIBEIRO DE ANDRADE|FRANCIS K M COUTINHO)\b/gi, '');
-    limpa = limpa.replace(/[-]{2,}/g, ' ').replace(/\s{2,}/g, ' ').trim();
-    return limpa;
-  }
-
-  const IGNORAR_STARTS = ["INSS","SALDO","TED","PIX","SAQUE","COMPRA","DEPOSITO","RENDIMENTOS","EMPRESTIMO PESSOAL - BDN"];
-  const IGNORAR_CONTAINS = ["SALDO DO DIA","SALDO ANTERIOR"];
-
-  function parseBradescoPage(items){
-    let map=new Map(); items.forEach(i=>{ let y=Math.round(i.transform[5]/2)*2; if(!map.has(y)) map.set(y,[]); map.get(y).push({x:i.transform[4],text:i.str.trim()}); });
-    let ys=Array.from(map.keys()).sort((a,b)=>b-a), dataAtual='', pend=[], res=[];
-    for(let y of ys){
-      let itens=map.get(y).sort((a,b)=>a.x-b.x), dataF='', hist=[], debF='', credField='';
-      itens.forEach(i=>{ let x=i.x, t=i.text;
-        if(x<90 && /^\d{2}\/\d{2}\/\d{4}$/.test(t)) dataF=t;
-        else if(x>=90 && x<283){
-          if (!/^\d{4,}$/.test(t) && !/^BCO24HS/i.test(t) && !/^_BDN\/24HS/i.test(t) && !/^AG\d+/i.test(t) && !/^\d{2}\/\d{2}$/.test(t)) {
-            hist.push(t);
-          }
-        }
-        else if(x>=445 && x<528){ 
-          let match = t.match(/^-?\d{1,3}(?:\.\d{3})*,\d{2}$/);
-          if(match) debF = match[0];
-        }
-        else if(x>=380 && x<445) credField=t;
-      });
-      if(dataF) dataAtual=dataF;
-      let histT=hist.join(' ').trim();
-      if(debF && dataAtual){
-        let desc=[...pend, histT].filter(Boolean).join(' ').replace(/\s+/g,' ').trim(); pend=[];
-        desc=limparDescricao(desc);
-        if(desc){
-          const upperDesc = desc.toUpperCase();
-          const proibido = IGNORAR_STARTS.some(s => upperDesc.includes(s)) ||
-                           IGNORAR_CONTAINS.some(s => upperDesc.includes(s)) ||
-                           ["CREFISA","PORTOCRED","DACASA"].some(x => upperDesc.includes(x));
-          if (!proibido) {
-            let v = parseFloat(debF.replace(/\./g,'').replace(',','.').replace('-',''));
-            if(v>0 && v<50000){ 
-              let cat=classificar(desc); 
-              if(cat) res.push({data:dataAtual,descricao:desc,valor:v,categoria:cat}); 
-            }
-          }
-        }
-      } else if(!dataF && histT && !debF && !credField){ pend.push(histT); } else { pend=[]; }
+    // Linha SEM data, SEM débito, SEM crédito/saldo → continuação de descrição
+    else if (!dataField && histField && !temValorMonetario) {
+      descPendente += (descPendente ? " " : "") + histField;
     }
-    return res;
-  }
-  
-  function parseGenerico(t){ return []; }
-
-  async function extrairTextoComOCR(file){
-    log(`🔎 OCR para ${file.name}...`,'warn');
-    let T=await import('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js');
-    let w=await T.createWorker('por',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js'});
-    let ab=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:ab}).promise, txt='';
-    for(let i=1;i<=pdf.numPages;i++){ let p=await pdf.getPage(i), v=p.getViewport({scale:2.0}), c=document.createElement('canvas'); c.width=v.width; c.height=v.height; await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise; let r=await w.recognize(c); txt+=r.data.text+'\n'; }
-    await w.terminate(); log('✓ OCR ok','ok'); return txt;
-  }
-  
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  async function processarPDF(file){
-    let ab=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:ab}).promise, pgs=[], txt='';
-    for(let i=1;i<=pdf.numPages;i++){ let p=await pdf.getPage(i), c=await p.getTextContent(); pgs.push(c.items); txt+=c.items.map(it=>it.str).join(' ')+'\n'; }
-    let mc=txt.length/pdf.numPages; log(`  Banco: ${txt.toLowerCase().includes('bradesco')?'Bradesco':'Desconhecido'} · ${pdf.numPages} págs`);
-    let cob=[];
-    if(mc<150){ try{ let ocr=await extrairTextoComOCR(file); cob=parseGenerico(ocr); }catch(e){ log('OCR falhou','err'); return []; } }
-    else { if(txt.toLowerCase().includes('bradesco')){ for(let pg of pgs) cob.push(...parseBradescoPage(pg)); } else cob=parseGenerico(txt); }
-    let seen=new Set(); return cob.filter(c=>{ let k=`${c.data}|${c.descricao}|${c.valor.toFixed(2)}`; if(seen.has(k)) return false; seen.add(k); return true; }).map(c=>({...c,arquivo:file.name}));
-  }
-  
-  let arquivos=[], todos=[], filtrados=[];
-  function log(m,t='info'){ let b=document.getElementById('logBox'); b.style.display='block'; let col=t==='ok'?'#6ee7b7':t==='err'?'#fca5a5':t==='warn'?'#fcd34d':'#7ecdc6'; b.innerHTML+=`<div style="color:${col}">${m}</div>`; b.scrollTop=b.scrollHeight; }
-  function atualizarLista(){ document.getElementById('fileList').innerHTML=arquivos.map(f=>`<div>📄 ${f.name} (${(f.size/1024).toFixed(0)} KB)</div>`).join(''); log(`${arquivos.length} arquivo(s)`); }
-  
-  const dz=document.getElementById('dropZone'), fi=document.getElementById('fileInput');
-  document.getElementById('btnSelectFiles').addEventListener('click',(e)=>{ e.stopPropagation(); fi.click(); });
-  dz.addEventListener('click',()=>fi.click());
-  dz.addEventListener('dragover',e=>e.preventDefault());
-  dz.addEventListener('drop',e=>{ e.preventDefault(); arquivos=Array.from(e.dataTransfer.files).filter(f=>f.name.endsWith('.pdf')); atualizarLista(); });
-  fi.addEventListener('change',function(){ arquivos=Array.from(this.files).filter(f=>f.name.endsWith('.pdf')); atualizarLista(); });
-  
-  document.getElementById('btnAnalisar').onclick=async ()=>{
-    if(!arquivos.length) return log('Nenhum PDF','warn');
-    todos=[]; document.getElementById('logBox').innerHTML=''; log('🔍 Iniciando...'); document.getElementById('btnAnalisar').disabled=true;
-    for(let f of arquivos){ log(`Processando ${f.name}...`); try{ let r=await processarPDF(f); todos.push(...r); log(`  ✓ ${r.length} cobranças`,'ok'); }catch(e){ log(`  ✗ ${e.message}`,'err'); } }
-    document.getElementById('btnAnalisar').disabled=false;
-    if(todos.length){ document.getElementById('resultCard').style.display='block'; ['btnXLSX','btnCSV','btnPDF'].forEach(id=>document.getElementById(id).disabled=false); renderKPIs(); aplicarFiltros(); }
-    else log('⚠ Nenhuma cobrança','warn');
-  };
-  
-  function fmt(v){ return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
-  function renderKPIs(){
-    let tot=todos.reduce((s,i)=>s+i.valor,0), cats={}; todos.forEach(i=>cats[i.categoria]=(cats[i.categoria]||0)+i.valor);
-    let h=`<div class="kpi-card hl"><div>💰 Total Geral</div><div style="font-size:1.5rem;">${fmt(tot)}</div><div>${todos.length} lançamentos</div></div>`;
-    for(let [c,v] of Object.entries(cats).sort((a,b)=>b[1]-a[1])) h+=`<div class="kpi-card"><div>${c}</div><div style="font-size:1.2rem;">${fmt(v)}</div></div>`;
-    document.getElementById('kpiGrid').innerHTML=h;
-  }
-  
-  function aplicarFiltros(){
-    let ag=document.getElementById('chkMes').checked, filt=[...todos], ds=document.getElementById('dtStart').value, de=document.getElementById('dtEnd').value;
-    if(ds||de) filt=filt.filter(i=>{ let[p,d,a]=i.data.split('/'), dt=new Date(+a,+d-1,+p); if(ds&&dt<new Date(ds+'-01')) return false; if(de){ let[y,m]=de.split('-'); if(dt>=new Date(+y,+m,1)) return false; } return true; });
-    filtrados=filt; let tbody=document.getElementById('tblBody');
-    if(ag){
-      let map=new Map(); filt.forEach(i=>{ let[p,d,a]=i.data.split('/'), k=`${a}-${d}`; if(!map.has(k)) map.set(k,{tot:0,cats:{}}); let g=map.get(k); g.tot+=i.valor; g.cats[i.categoria]=(g.cats[i.categoria]||0)+i.valor; });
-      let meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-      tbody.innerHTML=Array.from(map.entries()).sort().map(([k,g])=>{ let[a,m]=k.split('-'); let desc=Object.entries(g.cats).map(([c,v])=>`${c}: ${fmt(v)}`).join(' · '); return `<tr><td>${meses[+m-1]} ${a}</td><td>${desc}</td><td>${fmt(g.tot)}</td><td>—</td><td>—</td></tr>`; }).join('');
-    } else {
-      tbody.innerHTML=filt.sort((a,b)=>{ let[da,ma,aa]=a.data.split('/'), [db,mb,ab]=b.data.split('/'); return new Date(+aa,+ma-1,+da)-new Date(+ab,+mb-1,+db); }).map(i=>{ 
-        let cls = i.categoria.includes('Matriz') ? 'tag-red' : (i.categoria.includes('Avulsa') ? 'tag-teal' : (i.categoria.includes('Seguro') ? 'tag-purple' : ''));
-        return `<tr><td>${i.data}</td><td>${i.descricao}</td><td>${fmt(i.valor)}</td><td><span class="tag ${cls}">${i.categoria}</span></td><td>${i.arquivo}</td></tr>`; 
-      }).join('');
+    // Linha COM data mas sem débito → é outra transação (crédito/saldo)
+    // NÃO acumula como descPendente — reseta
+    else if (dataField) {
+      descPendente = "";
     }
-    document.getElementById('totalFiltrado').textContent=fmt(filt.reduce((s,i)=>s+i.valor,0));
+    // Linha sem data mas com valor monetário (crédito/saldo sem débito) → ignora, reset
+    else {
+      descPendente = "";
+    }
   }
-  
-  document.getElementById('btnFiltrar').onclick=aplicarFiltros;
-  document.getElementById('chkMes').onchange=aplicarFiltros;
-  document.getElementById('btnLimpar').onclick=()=>{ arquivos=[]; todos=[]; filtrados=[]; document.getElementById('fileList').innerHTML=''; document.getElementById('logBox').innerHTML=''; document.getElementById('resultCard').style.display='none'; ['btnXLSX','btnCSV','btnPDF'].forEach(id=>document.getElementById(id).disabled=true); fi.value=''; };
-  
-  document.getElementById('btnXLSX').onclick=()=>{ let ws=XLSX.utils.json_to_sheet(filtrados.map(i=>({Data:i.data,Descrição:i.descricao,Valor:i.valor,Categoria:i.categoria,Arquivo:i.arquivo}))); let wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Cobranças'); XLSX.writeFile(wb,`LAADV_${new Date().toISOString().slice(0,10)}.xlsx`); };
-  document.getElementById('btnCSV').onclick=()=>{ let cab=['Data','Descrição','Valor (R$)','Categoria','Arquivo']; let lin=filtrados.map(i=>[i.data,i.descricao,i.valor.toFixed(2).replace('.',','),i.categoria,i.arquivo]); let csv='\uFEFF'+[cab,...lin].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n'); let a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`LAADV_${new Date().toISOString().slice(0,10)}.csv`; a.click(); };
-  
-  document.getElementById('btnPDF').onclick=function(){
-    if(!filtrados.length) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(11,74,68); doc.text('Luís Albert Advocacia', 14, 15);
-    doc.setFontSize(10); doc.setTextColor(201,169,62); doc.text('Relatório de Cobranças Indevidas - LAADV v11.2', 14, 22);
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    doc.setFontSize(8); doc.setTextColor(100); doc.text(`Gerado em: ${hoje}`, 14, 30);
-    const totalGeral = filtrados.reduce((s,i)=>s+i.valor,0);
-    const porCategoria = {};
-    filtrados.forEach(i => {
-      const catLimpa = limparCategoriaParaPDF(i.categoria);
-      porCategoria[catLimpa] = (porCategoria[catLimpa]||0) + i.valor;
-    });
-    doc.setFontSize(9); doc.setTextColor(0); let y=40;
-    doc.text(`Total de lançamentos: ${filtrados.length}  |  Valor total: ${fmt(totalGeral)}`, 14, y); y+=5;
-    Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]).forEach(([cat, val]) => {
-      doc.text(`• ${cat}: ${fmt(val)}`, 14, y);
-      y+=4;
-    });
-    const cols = ['Data', 'Descrição', 'Valor (R$)', 'Categoria'];
-    const rows = filtrados.map(i => [
-      i.data,
-      i.descricao.length>50?i.descricao.substring(0,47)+'...':i.descricao,
-      i.valor.toFixed(2).replace('.',','),
-      limparCategoriaParaPDF(i.categoria)
-    ]);
-    doc.autoTable({
-      head: [cols],
-      body: rows,
-      startY: y+5,
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [11,74,68], textColor: 255 },
-      alternateRowStyles: { fillColor: [245,247,249] },
-      columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 55 }
-      },
-      margin: { left: 14, right: 14 }
-    });
-    doc.save(`LAADV_Relatorio_${new Date().toISOString().slice(0,10)}.pdf`);
-  };
-})();
+  return resultado;
+}
+
+// ── Parser Itaú ───────────────────────────────────────────────────────────────
+function parseItauText(texto){
+  const RE=/^(\d{2}\/\d{2}\/\d{4})\s+(.+?)\s+(-[\d.]+,\d{2})\s+[\d.,]+\s*$/gm;
+  const r=[];let m;
+  while((m=RE.exec(texto))!==null){const[,data,desc,valStr]=m;if(isTransfer(desc))continue;const val=parseFloat(valStr.replace(/\./g,"").replace(",",".").replace("-",""));if(val>0.009&&val<50000)r.push({data,descricao:desc.slice(0,250),valor:val});}
+  return r;
+}
+
+// ── Parser BB ─────────────────────────────────────────────────────────────────
+function parseBBText(texto){
+  const linhas=texto.split("\n"),r=[];let dataCurr=null;
+  for(const raw of linhas){const linha=raw.trim();if(!linha)continue;
+    const mData=linha.match(/^(\d{2}\/\d{2}\/\d{4})/);if(mData)dataCurr=mData[1];
+    const mLan=linha.match(/^(\d{2}\/\d{2}\/\d{4})\s+\S+\s+\S+\s+(.+?)\s+([\d.,]+)\s+\(-\)\s*$/);
+    if(mLan){const[,data,desc,valStr]=mLan;if(!isTransfer(desc)){const val=parseFloat(valStr.replace(/\./g,"").replace(",","."));if(val>0.009)r.push({data,descricao:desc.slice(0,250),valor:val});}continue;}
+    if(dataCurr){const mFb=linha.match(/^(.+?)\s+([\d.]+,\d{2})\s+\(-\)/);if(mFb){const desc=mFb[1].trim();if(!isTransfer(desc)){const val=parseFloat(mFb[2].replace(/\./g,"").replace(",","."));if(val>0.009)r.push({data:dataCurr,descricao:desc.slice(0,250),valor:val});}}}}
+  return r;
+}
+
+// ── Parser CEF ────────────────────────────────────────────────────────────────
+function parseCEFText(texto){
+  const RE=/^(\d{2}\/\d{2}\/\d{4})\s+\d+\s+(.+?)\s+([\d.,]+)\s+D\s+[\d.,]+\s+[CD]/gm;
+  const r=[];let m;
+  while((m=RE.exec(texto))!==null){const[,data,desc,valStr]=m;if(isTransfer(desc))continue;const val=parseFloat(valStr.replace(/\./g,"").replace(",","."));if(val>0.009&&val<50000)r.push({data,descricao:desc.slice(0,250),valor:val});}
+  return r;
+}
+
+// ── Parser Santander ──────────────────────────────────────────────────────────
+function parseSantanderText(texto){
+  const ano=(texto.match(/(20\d{2})/)||[])[1]||new Date().getFullYear().toString();
+  const TERMOS=["TARIFA","MENSALIDADE","PACOTE SERVICOS","SEGURO","IOF","JUROS","MORA","ENCARGO"];
+  const r=[];let emMov=false;
+  for(const raw of texto.split("\n")){const linha=raw.trim();
+    if(linha.includes("Movimentação")||linha.includes("Data Descrição")){emMov=true;continue;}
+    if(emMov&&["Extrato_PF","Pagina:","Saldos por Período","Comprovantes de"].some(x=>linha.includes(x)))emMov=false;
+    if(!emMov)continue;const mData=linha.match(/^(\d{2}\/\d{2})\s+/);if(!mData)continue;
+    const data=`${mData[1]}/${ano}`,resto=linha.slice(mData[0].length).trim();
+    const mVal=resto.match(/([\d.]+,\d{2})-/);if(!mVal)continue;
+    const desc=resto.slice(0,mVal.index).trim();if(!desc||isTransfer(desc))continue;
+    const dU=desc.toUpperCase();if(!TERMOS.some(t=>dU.includes(t)))continue;
+    const val=parseFloat(mVal[1].replace(/\./g,"").replace(",","."));
+    if(val>0.009)r.push({data,descricao:desc.slice(0,250),valor:val});}
+  return r;
+}
+
+// ── Parser genérico (fallback textual) ─────────────────────────────────────────
+function parseGenericoText(texto){
+  const linhas=texto.split("\n"),r=[];let dataCurr=null;
+  const reData=/(\d{2}\/\d{2}\/\d{4})/;
+  const RE_DEB_PAR=/(-\d{1,3}(?:\.\d{3})*,\d{2})\s+\d{1,3}(?:\.\d{3})*,\d{2}/g;
+  for(const raw of linhas){const linha=raw.trim();if(!linha||isCabecalho(linha))continue;
+    const mData=linha.match(reData);if(mData)dataCurr=mData[1];if(!dataCurr)continue;
+    RE_DEB_PAR.lastIndex=0;let m;
+    while((m=RE_DEB_PAR.exec(linha))!==null){
+      let desc=linha.slice(0,m.index).replace(reData,"").replace(/\d{5,}/g,"").trim();
+      if(!desc||isTransfer(desc))continue;
+      const val=parseFloat(m[1].replace(/\./g,"").replace(",",".").replace("-",""));
+      if(val>0.009&&val<50000)r.push({data:dataCurr,descricao:desc.slice(0,250),valor:val});
+    }
+  }
+  return r;
+}
+
+// ── PDF.js ────────────────────────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+async function extrairPDF(file){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  const paginasTexto=[],paginasItems=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    const content=await page.getTextContent();
+    paginasTexto.push(content.items.map(it=>it.str).join(" "));
+    paginasItems.push(content.items);
+  }
+  const textoCompleto=paginasTexto.join("\n");
+  const banco=detectarBanco(textoCompleto);
+  const mediaChars=textoCompleto.length/pdf.numPages;
+  return{textoCompleto,paginasTexto,paginasItems,banco,mediaChars,numPaginas:pdf.numPages};
+}
+
+// ── OCR (Tesseract.js sob demanda) ────────────────────────────────────────────
+let tesseractWorker=null;
+async function ocrPDF(file){
+  if(!tesseractWorker){log("Carregando Tesseract OCR...","warn");
+    if(typeof Tesseract==="undefined")await carregarScript("https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js");
+    tesseractWorker=await Tesseract.createWorker("por");}
+  const ab=await file.arrayBuffer();const blob=new Blob([ab],{type:"application/pdf"});
+  const url=URL.createObjectURL(blob);const{data:{text}}=await tesseractWorker.recognize(url);
+  URL.revokeObjectURL(url);return text;
+}
+function carregarScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+
+// ── Pipeline principal ────────────────────────────────────────────────────────
+async function processarArquivo(file){
+  let extraido;
+  try{extraido=await extrairPDF(file);}catch(e){log(`✗ Erro ao ler ${file.name}: ${e.message}`,"err");return[];}
+  const{textoCompleto,paginasItems,banco,mediaChars,numPaginas}=extraido;
+  log(`  Banco: ${banco} · ${numPaginas} págs · ${Math.round(mediaChars)} chars/pág`);
+  let debitos=[];
+  if(mediaChars<200){
+    log("  Texto escasso → OCR (Tesseract.js)...","warn");
+    try{const textoOCR=await ocrPDF(file);debitos=parseGenericoText(textoOCR);log(`  OCR: ${debitos.length} lançamentos extraídos`);}
+    catch(e){log(`  ✗ OCR falhou: ${e.message}`,"err");}
+  } else {
+    switch(banco){
+      case "bradesco":
+        const todosItems=paginasItems.flat();
+        debitos=parseBradescoPage(todosItems);
+        if(!debitos.length)debitos=parseGenericoText(textoCompleto);
+        break;
+      case "itau":debitos=parseItauText(textoCompleto);break;
+      case "bb":debitos=parseBBText(textoCompleto);break;
+      case "cef":debitos=parseCEFText(textoCompleto);break;
+      case "santander":debitos=parseSantanderText(textoCompleto);break;
+      default:debitos=parseGenericoText(textoCompleto);
+    }
+    log(`  ${debitos.length} débitos extraídos (parser ${banco})`);
+  }
+  const cobrancas=[];
+  for(const d of debitos){const cat=classificarCompleto(d.descricao);if(cat!=="Outros Descontos")cobrancas.push({...d,categoria:cat,arquivo:file.name});}
+  log(`  ✓ ${cobrancas.length} cobranças indevidas identificadas`,"ok");
+  return cobrancas;
+}
+
+// ── ESTADO GLOBAL ─────────────────────────────────────────────────────────────
+let arquivos=[], allItems=[], filtered=[], activeCats=new Set(), logLines=[];
+
+// ── UI HELPERS ────────────────────────────────────────────────────────────────
+function fmt(v){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v);}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function prog(p){document.getElementById("pFill").style.width=p+"%";}
+function setDot(s){const d=document.getElementById("dotStatus");d.className="hdr-dot"+(s==="ok"?" ok":s==="err"?" err":s==="run"?" run":"");}
+function log(msg,tipo=""){
+  logLines.push({msg,tipo});const box=document.getElementById("logBox");box.style.display="block";
+  box.innerHTML=logLines.slice(-100).map(l=>{const cls=l.tipo==="ok"?"lok":l.tipo==="err"?"lerr":l.tipo==="warn"?"lwarn":"";return`<span class="${cls}">${esc(l.msg)}</span>`;}).join("\n");
+  box.scrollTop=box.scrollHeight;
+  document.getElementById("statusMsg").textContent=msg.length>70?msg.slice(0,70)+"…":msg;
+  document.getElementById("hdrTxt").textContent=msg.length>45?msg.slice(0,45)+"…":msg;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DROP ZONE — v8.3: CORRIGIDO event bubbling
+// ══════════════════════════════════════════════════════════════════════════════
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const btnSelectFiles = document.getElementById("btnSelectFiles");
+
+function handleFiles(files) {
+  const pdfs = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  if (!pdfs.length) { log("Nenhum arquivo PDF selecionado.", "warn"); return; }
+  arquivos = pdfs;
+  document.getElementById('fileList').innerHTML = arquivos.map(f =>
+    `<div class="file-item">
+      <span style="font-size:.7rem;font-weight:700;color:var(--teal);background:var(--teal-bg);padding:.1em .5em;border-radius:4px">PDF</span>
+      <span class="file-name">${esc(f.name)}</span>
+      <span class="file-size">${(f.size/1024).toFixed(0)} KB</span>
+    </div>`
+  ).join('');
+  log(`${arquivos.length} arquivo(s) carregado(s).`);
+}
+
+// FIX v8.3: botão tem stopPropagation — não borbulha para dropZone
+btnSelectFiles.addEventListener("click", function(e) {
+  e.stopPropagation();  // ← CORREÇÃO CRÍTICA: impede double click
+  fileInput.value = "";  // ← permite re-seleção do mesmo arquivo
+  fileInput.click();
+});
+
+// dropZone click como fallback (só dispara se clicar no fundo, não no botão)
+dropZone.addEventListener("click", function(e) {
+  if (e.target === btnSelectFiles || btnSelectFiles.contains(e.target)) return;
+  fileInput.value = "";
+  fileInput.click();
+});
+
+dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add("over"); };
+dropZone.ondragleave = () => dropZone.classList.remove("over");
+dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove("over"); handleFiles(e.dataTransfer.files); };
+
+fileInput.addEventListener("change", function(e) {
+  if (this.files && this.files.length > 0) {
+    handleFiles(this.files);
+  }
+});
+
+// ── ANÁLISE ───────────────────────────────────────────────────────────────────
+document.getElementById("btnAnalisar").onclick = async () => {
+  if(!arquivos.length){log("Selecione ao menos um PDF.","warn");return;}
+  allItems=[];logLines=[];filtered=[];activeCats=new Set();_modeloTreino=null;
+  prog(0);setDot("run");
+  document.getElementById("btnAnalisar").innerHTML='<span class="spinner"></span> Analisando…';
+  document.getElementById("btnAnalisar").disabled=true;
+  document.getElementById("resultCard").style.display="none";
+  document.getElementById("logBox").style.display="none";
+  document.getElementById("logBox").innerHTML="";
+  log("Iniciando análise…");
+  const total=arquivos.length;
+  for(let i=0;i<total;i++){
+    const f=arquivos[i];log(`[${i+1}/${total}] ${f.name}`);prog(10+(i/total)*80);
+    try{const cobr=await processarArquivo(f);allItems.push(...cobr);}catch(e){log(`✗ ${f.name}: ${e.message}`,"err");}
+  }
+  prog(100);
+  if(!allItems.length){log("⚠ Nenhuma cobrança indevida identificada nos extratos.","warn");setDot("err");}
+  else{
+    log(`✓ Análise concluída — ${allItems.length} cobrança(s) identificada(s). Total: ${fmt(allItems.reduce((a,b)=>a+b.valor,0))}`,"ok");
+    setDot("ok");["btnXLSX","btnCSV","btnPDF"].forEach(id=>document.getElementById(id).disabled=false);
+    document.getElementById("resultCard").style.display="block";renderKPIs();construirCatPills();renderizar();
+    document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
+  }
+  document.getElementById("btnAnalisar").innerHTML="🔍 Analisar";
+  document.getElementById("btnAnalisar").disabled=false;
+};
+
+// ── KPIs ──────────────────────────────────────────────────────────────────────
+function renderKPIs(){
+  const cats={},total=allItems.reduce((a,b)=>a+b.valor,0);
+  allItems.forEach(it=>cats[it.categoria]=(cats[it.categoria]||0)+it.valor);
+  let html=`<div class="kpi-card hl"><div class="kpi-label">💰 Total Geral</div><div class="kpi-val">${fmt(total)}</div><div class="kpi-sub">${allItems.length} lançamento(s)</div></div>`;
+  for(const[cat,val]of Object.entries(cats).sort((a,b)=>b[1]-a[1])){
+    const pct=total>0?((val/total)*100).toFixed(1):"0.0";
+    html+=`<div class="kpi-card"><div class="kpi-label">${esc(cat)}</div><div class="kpi-val" style="font-size:1.2rem">${fmt(val)}</div><div class="kpi-sub">${pct}% do total</div></div>`;
+  }
+  document.getElementById("kpiGrid").innerHTML=html;
+}
+
+// ── Category Pills + Table ────────────────────────────────────────────────────
+const CAT_TAG={"Parcela Empréstimo":"tag-red","Mora/Juros":"tag-orange","Tarifa Bancária":"tag-teal","Seguro":"tag-purple","IOF":"tag-gold","Cartão Consignado":"tag-red","Gasto Cartão":"tag-orange"};
+function tagCat(cat){return`<span class="tag ${CAT_TAG[cat]||"tag-teal"}">${esc(cat)}</span>`;}
+function construirCatPills(){
+  const cats=[...new Set(allItems.map(i=>i.categoria))].sort();activeCats=new Set(cats);
+  const div=document.getElementById("catPills");div.innerHTML="";
+  cats.forEach(cat=>{const btn=document.createElement("button");btn.className="cat-pill active";btn.textContent=cat;
+    btn.onclick=()=>{if(activeCats.has(cat)){activeCats.delete(cat);btn.classList.remove("active");}else{activeCats.add(cat);btn.classList.add("active");}renderizar();};
+    div.appendChild(btn);});
+}
+
+function renderizar(){
+  const agrupar=document.getElementById("chkMes").checked;
+  const dtS=document.getElementById("dtStart").value,dtE=document.getElementById("dtEnd").value;
+  filtered=allItems.filter(it=>{
+    if(!activeCats.has(it.categoria))return false;
+    if(dtS||dtE){const p=(it.data||"").split("/");if(p.length===3){const d=new Date(+p[2],+p[1]-1,+p[0]);
+      if(dtS){const[y,m]=dtS.split("-");if(d<new Date(+y,+m-1,1))return false;}
+      if(dtE){const[y,m]=dtE.split("-");if(d>=new Date(+y,+m,1))return false;}}}
+    return true;
+  });
+  let exibir=[];
+  if(agrupar){
+    const mapa=new Map();filtered.forEach(it=>{if(!it.data)return;const p=it.data.split("/");const k=`${p[2]}-${p[1].padStart(2,"0")}`;if(!mapa.has(k))mapa.set(k,{k,val:0,cats:{}});const g=mapa.get(k);g.val+=it.valor;g.cats[it.categoria]=(g.cats[it.categoria]||0)+it.valor;});
+    const meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+    exibir=[...mapa.values()].sort((a,b)=>a.k.localeCompare(b.k)).map(g=>({data:(()=>{const[y,m]=g.k.split("-");return`${meses[+m-1]} ${y}`;})(),descricao:Object.entries(g.cats).map(([c,v])=>`${c}: ${fmt(v)}`).join(" · "),valor:g.val,categoria:"Agrupado",arquivo:"—"}));
+  } else {
+    exibir=[...filtered].sort((a,b)=>{const pa=(a.data||"").split("/").reverse().join(""),pb=(b.data||"").split("/").reverse().join("");return pa.localeCompare(pb);});
+  }
+  const totalFilt=filtered.reduce((a,b)=>a+b.valor,0);const tbody=document.getElementById("tblBody");
+  if(!exibir.length){tbody.innerHTML=`<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Nenhum resultado para os filtros selecionados.</div></div></td></tr>`;}
+  else{tbody.innerHTML=exibir.map(r=>`<tr><td class="td-date">${esc(r.data||"—")}</td><td>${esc(r.descricao)}</td><td class="td-val">${fmt(r.valor)}</td><td>${r.categoria==="Agrupado"?'<span class="tag tag-teal">Agrupado</span>':tagCat(r.categoria)}</td><td style="font-size:.7rem;color:var(--gray-mid);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.arquivo)}">${esc(r.arquivo)}</td></tr>`).join("");}
+  document.getElementById("infoCount").textContent=`${exibir.length} linha(s) · ${filtered.length} lançamento(s)`;
+  document.getElementById("tagTotal").textContent=`Total: ${fmt(totalFilt)}`;
+}
+
+// ── EXPORTAÇÃO ────────────────────────────────────────────────────────────────
+document.getElementById("btnXLSX").onclick=()=>{if(!filtered.length)return;const ws=XLSX.utils.json_to_sheet(filtered.map(r=>({"Data":r.data||"","Descrição":r.descricao,"Valor (R$)":r.valor.toFixed(2).replace(".",","),"Categoria":r.categoria,"Arquivo":r.arquivo})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Cobranças");XLSX.writeFile(wb,`LAADV_${new Date().toISOString().slice(0,10)}.xlsx`);};
+
+document.getElementById("btnCSV").onclick=()=>{if(!filtered.length)return;const rows=[["Data","Descrição","Valor (R$)","Categoria","Arquivo"]];filtered.forEach(r=>rows.push([r.data||"",r.descricao,r.valor.toFixed(2).replace(".",","),r.categoria,r.arquivo]));const csv="\uFEFF"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`LAADV_${new Date().toISOString().slice(0,10)}.csv`;a.click();};
+
+function exportarPDF(){
+  if(!filtered.length)return;const total=filtered.reduce((a,b)=>a+b.valor,0);const agora=new Date().toLocaleString("pt-BR");
+  const cats={};filtered.forEach(r=>cats[r.categoria]=(cats[r.categoria]||0)+r.valor);
+  const resumo=Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`${c}: ${fmt(v)}`).join(" · ");
+  document.getElementById("printInfo").innerHTML=`<div><strong>Total: ${fmt(total)}</strong></div><div>${filtered.length} lançamento(s)</div><div>${resumo}</div><div>Gerado em: ${agora}</div>`;
+  window.print();
+}
+
+// ── LIMPAR ────────────────────────────────────────────────────────────────────
+document.getElementById("btnLimpar").onclick=()=>{
+  arquivos=[];allItems=[];filtered=[];logLines=[];activeCats=new Set();
+  ["fileList","tblBody","kpiGrid","catPills"].forEach(id=>document.getElementById(id).innerHTML="");
+  document.getElementById("statusMsg").textContent="";
+  document.getElementById("logBox").style.display="none";document.getElementById("logBox").innerHTML="";
+  document.getElementById("resultCard").style.display="none";
+  ["btnXLSX","btnCSV","btnPDF"].forEach(id=>document.getElementById(id).disabled=true);
+  document.getElementById("dtStart").value="";document.getElementById("dtEnd").value="";
+  fileInput.value="";  // v8.3: reset do input
+  setDot("");document.getElementById("hdrTxt").textContent="Pronto";prog(0);
+};
+
+// ── FILTROS ───────────────────────────────────────────────────────────────────
+document.getElementById("chkMes").onchange=renderizar;
+document.getElementById("btnFiltrar").onclick=renderizar;
+
+// ── MODAL KEYWORDS ────────────────────────────────────────────────────────────
+let kwCatSel=null;
+function abrirModalKw(){document.getElementById("modalKw").classList.add("open");document.getElementById("kwEditor").classList.remove("open");document.getElementById("kwSalvarBtn").disabled=true;kwCatSel=null;renderKwCats();}
+function fecharModalKw(){document.getElementById("modalKw").classList.remove("open");}
+function renderKwCats(){document.getElementById("kwCatList").innerHTML=Object.entries(KEYWORDS).map(([cat,kws])=>`<div class="kw-cat-item${cat===kwCatSel?" selected":""}" onclick="selecionarKwCat('${esc(cat)}')""><span>${esc(cat)}</span><span class="kw-count">${kws.length} termo(s)</span></div>`).join("");}
+function selecionarKwCat(cat){kwCatSel=cat;document.querySelectorAll(".kw-cat-item").forEach(el=>{el.classList.toggle("selected",el.textContent.trim().startsWith(cat));});document.getElementById("kwEditorTitle").textContent=`Editando: ${cat}`;document.getElementById("kwTextarea").value=(KEYWORDS[cat]||[]).join("\n");document.getElementById("kwEditor").classList.add("open");document.getElementById("kwSalvarBtn").disabled=false;}
+function salvarKeywords(){if(!kwCatSel)return;const linhas=document.getElementById("kwTextarea").value.split("\n").map(l=>l.trim().toUpperCase()).filter(Boolean);if(!linhas.length){alert("Digite ao menos um termo.");return;}KEYWORDS[kwCatSel]=linhas;salvarKwStorage();_modeloTreino=null;log(`✓ Keywords salvas — ${linhas.length} termos em "${kwCatSel}".`,"ok");renderKwCats();document.getElementById("kwSalvarBtn").textContent="✓ Salvo!";setTimeout(()=>{document.getElementById("kwSalvarBtn").textContent="💾 Salvar";},1500);}
+function adicionarCategoria(){const nome=document.getElementById("newCatInput").value.trim();if(!nome)return;if(!KEYWORDS[nome])KEYWORDS[nome]=[];salvarKwStorage();document.getElementById("newCatInput").value="";renderKwCats();selecionarKwCat(nome);}
+document.getElementById("modalKw").addEventListener("click",function(e){if(e.target===this)fecharModalKw();});
+
+console.log("LAADV Analisador v8.3 · AKE UFT-1.0 · GitHub Pages Ready");
+console.log("AKE_BUILD_LOG:",AKE_BUILD_LOG);
 </script>
 </body>
 </html>
