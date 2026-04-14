@@ -729,9 +729,9 @@ function parseBradescoPage(items, dataInicial) {
     let dataField = "", histParts = [], debField = "", credField = "", saldoField = "";
     for (const item of todosItens) {
       const x = item.x;
-      if (x < 110) {
+      if (x < 100) {
         if (RE_DATA.test(item.text)) dataField = item.text;
-      } else if (x >= 110 && x < 300) {
+      } else if (x >= 100 && x < 300) {
         const t = item.text.trim();
         if (t && !/^Ag\d{4}/i.test(t) && !/^Poup\s+Facil/i.test(t)
             && !/^\d{10,}/.test(t) && !/^BC024HS\s*-/i.test(t)
